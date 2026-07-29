@@ -4,11 +4,11 @@ import { ensureTodayLogs } from '@/lib/medicine-schedule';
 import { isAuthorizedCron } from '@/lib/cron-auth';
 import { todayStr, slotLabel } from '@/lib/utils';
 import {
-  caregiverNumber,
   medicineReminderMessage,
   missedMedicineAlert,
   patientNumber,
   sendWhatsApp,
+  sendWhatsAppToFamily,
 } from '@/lib/whatsapp';
 import type { Medicine, MedicineLog } from '@/lib/types';
 
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const slotHi = slotLabel(log.slot);
 
     if (minutesLate >= 90 && !log.caregiver_alert_sent) {
-      await sendWhatsApp(caregiverNumber(), missedMedicineAlert(name, slotHi), 'missed_alert');
+      await sendWhatsAppToFamily(missedMedicineAlert(name, slotHi), 'missed_alert');
       await admin.from('notifications').insert({
         title: 'दवा छूट गई ⚠️',
         body: `${slotHi} की दवा "${name}" 90 मिनट से नहीं ली गई है।`,

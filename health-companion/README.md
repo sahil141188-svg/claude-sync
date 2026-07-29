@@ -75,9 +75,12 @@ npm run dev
 
 1. Import the repo, set **Root Directory** to `health-companion`.
 2. Add all environment variables (including `CRON_SECRET` — Vercel sends it automatically as the bearer token for cron requests).
-3. Deploy. Cron jobs from `vercel.json`:
+3. Deploy.
+4. Schedule the cron endpoints. Vercel's Hobby plan only allows daily crons, so scheduling
+   runs from Supabase instead (`pg_cron` + `pg_net` calling the deployed endpoints with the
+   `CRON_SECRET` bearer header):
    - `/api/cron/reminders` — every 15 min (medicine escalation)
-   - `/api/cron/daily-summary` — 7 AM / 1 PM / 9 PM IST (greetings + summary)
+   - `/api/cron/daily-summary?slot=morning|afternoon|night` — 7 AM / 1 PM / 9 PM IST
    - `/api/cron/nightly-analysis` — 10:30 PM IST (AI report)
 
 ### 6. Install on the phones

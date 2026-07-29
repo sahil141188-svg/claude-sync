@@ -35,10 +35,23 @@ export async function GET(request: Request) {
         { tip_date: today, topic: tip.topic, tip_hi: tip.hi, tip_en: tip.en },
         { onConflict: 'tip_date' }
       );
+
+    const { data: appointments } = await admin
+      .from('doctor_visits')
+      .select('doctor_name, visit_time')
+      .eq('visit_date', today);
+    const appointmentLine = (appointments ?? [])
+      .map(
+        (a) =>
+          `\n🩺 Aaj appointment: Dr. ${a.doctor_name}${a.visit_time ? ` (${a.visit_time.slice(0, 5)})` : ''}`
+      )
+      .join('');
+
     message =
       `Good Morning Papa ❤️\n\n"${quoteOfTheDay('hi')}"\n\n` +
-      `आज की सलाह (${tip.topic}): ${tip.hi}\n\n` +
-      `App kholkar aaj ki dawai zaroor dekh lijiye. Stay healthy ❤️`;
+      `आज की सलाह (${tip.topic}): ${tip.hi}` +
+      appointmentLine +
+      `\n\nApp kholkar aaj ki dawai zaroor dekh lijiye. Stay healthy ❤️`;
   } else if (slot === 'afternoon') {
     message =
       `Good Afternoon Papa ❤️\n\n` +

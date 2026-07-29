@@ -1,22 +1,14 @@
 import { FileText } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PrescriptionUploader } from './uploader';
-import type { ExtractedMedicine, PrescriptionFile, Profile } from '@/lib/types';
+import type { ExtractedMedicine, PrescriptionFile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PrescriptionsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single<Pick<Profile, 'role'>>();
+  const { supabase, isCaregiver } = await requireProfile();
 
   const [{ data: prescriptions }, { data: extracted }] = await Promise.all([
     supabase
@@ -40,7 +32,7 @@ export default async function PrescriptionsPage() {
         <FileText className="h-8 w-8 text-primary" /> Prescriptions
       </h1>
 
-      {profile?.role === 'caregiver' && <PrescriptionUploader />}
+      {isCaregiver && <PrescriptionUploader />}
 
       {(prescriptions ?? []).map((p) => {
         const meds = extractedByPrescription.get(p.id) ?? [];

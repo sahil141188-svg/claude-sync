@@ -1,20 +1,18 @@
 import { Settings as SettingsIcon } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { SettingsForm } from './settings-form';
 import { SignOutButton } from './sign-out-button';
-import type { AppSettings, Profile } from '@/lib/types';
+import type { AppSettings } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const [{ data: settings }, { data: profile }] = await Promise.all([
-    supabase.from('hc_app_settings').select('*').eq('id', 1).single<AppSettings>(),
-    supabase.from('profiles').select('*').eq('id', user!.id).single<Profile>(),
-  ]);
+  const { supabase, profile } = await requireProfile();
+  const { data: settings } = await supabase
+    .from('hc_app_settings')
+    .select('*')
+    .eq('id', 1)
+    .single<AppSettings>();
 
   return (
     <div className="space-y-4 animate-fade-in-up">
@@ -22,7 +20,8 @@ export default async function SettingsPage() {
         <SettingsIcon className="h-8 w-8 text-muted-foreground" /> Settings
       </h1>
       <p className="text-elder-base text-muted-foreground">
-        {profile?.full_name} ({profile?.role === 'caregiver' ? 'Caregiver' : 'Patient'})
+        {profile?.full_name} (
+        {profile?.role === 'caregiver' ? 'Caregiver' : profile?.role === 'family' ? 'Family' : 'Patient'})
       </p>
       <SettingsForm
         settings={

@@ -1,10 +1,10 @@
 import { Scale } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendChart } from '@/components/charts/trend-chart';
 import { WeightForm } from './weight-form';
-import type { Profile, WeightReading } from '@/lib/types';
+import type { WeightReading } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,17 +18,13 @@ function changeOver(rows: WeightReading[], days: number): number | null {
 }
 
 export default async function WeightPage() {
-  const supabase = await createClient();
+  const { supabase, isCaregiver } = await requireProfile();
   const since = new Date(Date.now() - 180 * 86_400_000).toISOString();
-  const [{ data: readings }, userRes] = await Promise.all([
-    supabase.from('weight_readings').select('*').gte('measured_at', since).order('measured_at'),
-    supabase.auth.getUser(),
-  ]);
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userRes.data.user!.id)
-    .single<Pick<Profile, 'role'>>();
+  const { data: readings } = await supabase
+    .from('weight_readings')
+    .select('*')
+    .gte('measured_at', since)
+    .order('measured_at');
 
   const rows = (readings ?? []) as WeightReading[];
   const latest = rows.at(-1);
@@ -77,7 +73,7 @@ export default async function WeightPage() {
         </Card>
       </div>
 
-      {profile?.role === 'caregiver' && <WeightForm lastHeight={latest?.height_cm ?? null} />}
+      {isCaregiver && <WeightForm lastHeight={latest?.height_cm ?? null} />}
 
       <Card>
         <CardHeader>

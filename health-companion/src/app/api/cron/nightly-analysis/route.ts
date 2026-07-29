@@ -4,7 +4,7 @@ import { isAuthorizedCron } from '@/lib/cron-auth';
 import { analyzeHealth } from '@/lib/ai';
 import { computeHealthScore, scoreStatus } from '@/lib/health-score';
 import { nowInAppTz, todayStr } from '@/lib/utils';
-import { caregiverNumber, patientNumber, sendWhatsApp } from '@/lib/whatsapp';
+import { patientNumber, sendWhatsApp, sendWhatsAppToFamily } from '@/lib/whatsapp';
 
 export const maxDuration = 60;
 
@@ -108,8 +108,7 @@ export async function GET(request: Request) {
     target_role: 'caregiver',
   });
 
-  await sendWhatsApp(
-    caregiverNumber(),
+  await sendWhatsAppToFamily(
     `📊 Papa ka daily health report\n\nStatus: ${status.replace('_', ' ')}\nScore: ${score}/100\n\n${summary}\n\nSujhaav:\n${recommendations.map((r) => `• ${r}`).join('\n')}`,
     'daily_report'
   );

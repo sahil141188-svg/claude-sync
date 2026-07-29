@@ -74,6 +74,31 @@ export async function sendWhatsApp(
 export const patientNumber = () => process.env.PATIENT_WHATSAPP_NUMBER;
 export const caregiverNumber = () => process.env.CAREGIVER_WHATSAPP_NUMBER;
 
+/**
+ * Every alert recipient: all family members' numbers plus the
+ * CAREGIVER_WHATSAPP_NUMBER env fallback. Digits-only, deduplicated.
+ */
+export async function alertNumbers(): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data } = await admin.from('family_members').select('phone');
+  const numbers = new Set<string>();
+  const envNumber = caregiverNumber();
+  if (envNumber) numbers.add(envNumber.replace(/\D/g, ''));
+  for (const row of data ?? []) {
+    const digits = (row.phone ?? '').replace(/\D/g, '');
+    if (digits.length >= 10) numbers.add(digits);
+  }
+  return [...numbers];
+}
+
+/** Send the same message to every alert recipient (family + caregiver). */
+export async function sendWhatsAppToFamily(message: string, category: string): Promise<void> {
+  const numbers = await alertNumbers();
+  for (const number of numbers) {
+    await sendWhatsApp(number, message, category);
+  }
+}
+
 export function medicineReminderMessage(medicineName: string, slotHi: string): string {
   return (
     `Namaste Papa ❤️\n\n` +

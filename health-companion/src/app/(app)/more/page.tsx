@@ -1,19 +1,25 @@
 import Link from 'next/link';
 import {
+  CalendarClock,
   ChevronRight,
   Dumbbell,
   Droplets,
   FileText,
+  FolderOpen,
   HeartPulse,
   Lightbulb,
   Salad,
   Scale,
   Settings,
   Siren,
+  Users,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 const LINKS = [
+  { href: '/appointments', label: 'Doctor Appointments', desc: 'तारीख़ और समय के साथ', icon: CalendarClock, tone: 'text-primary' },
+  { href: '/medical-reports', label: 'Medical Reports', desc: 'Lab reports upload और देखें', icon: FolderOpen, tone: 'text-violet-500' },
+  { href: '/family', label: 'Family Members', desc: 'Alerts सबको, login भी', icon: Users, tone: 'text-secondary' },
   { href: '/bp', label: 'Blood Pressure', desc: 'BP readings और graph', icon: HeartPulse, tone: 'text-primary' },
   { href: '/weight', label: 'वज़न', desc: 'Weight और BMI', icon: Scale, tone: 'text-secondary' },
   { href: '/water', label: 'पानी', desc: 'Daily water tracker', icon: Droplets, tone: 'text-sky-500' },
