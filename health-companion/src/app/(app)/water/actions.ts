@@ -15,7 +15,7 @@ export async function adjustWater(delta: number) {
     .maybeSingle();
 
   const { data: settings } = await supabase
-    .from('app_settings')
+    .from('hc_app_settings')
     .select('water_goal_glasses')
     .eq('id', 1)
     .single();
