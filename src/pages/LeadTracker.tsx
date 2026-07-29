@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, ChevronDown, CheckSquare, Calendar, Clock, X } from 'lucide-react'
 import { useERPStore } from '../store/erpStore'
@@ -37,14 +38,14 @@ function formatINR(val: number): string {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayLocal()
 }
 
 function followUpColor(dateStr: string): string {
   const today = todayStr()
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowStr = tomorrow.toISOString().split('T')[0]
+  const tomorrowStr = fmtLocalDate(tomorrow)
   if (dateStr < today) return 'text-red-600 font-semibold'
   if (dateStr === today) return 'text-orange-500 font-semibold'
   if (dateStr <= tomorrowStr) return 'text-green-600'
@@ -61,7 +62,7 @@ function urgencyLabel(dateStr: string): { icon: string; label: string; order: nu
   const today = todayStr()
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowStr = tomorrow.toISOString().split('T')[0]
+  const tomorrowStr = fmtLocalDate(tomorrow)
   if (dateStr < today) return { icon: '🔴', label: 'Overdue', order: 0 }
   if (dateStr === today) return { icon: '🟡', label: 'Today', order: 1 }
   return { icon: '🟢', label: 'Tomorrow+', order: 2 }

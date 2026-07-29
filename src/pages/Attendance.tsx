@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import { useERPStore } from '../store/erpStore'
 import {
   Calendar,
@@ -58,7 +59,7 @@ function getLast30Days(): string[] {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    days.push(d.toISOString().split('T')[0])
+    days.push(fmtLocalDate(d))
   }
   return days
 }
@@ -69,7 +70,7 @@ function getLast7Days(): string[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    days.push(d.toISOString().split('T')[0])
+    days.push(fmtLocalDate(d))
   }
   return days
 }
@@ -86,7 +87,7 @@ function formatDayShort(dateStr: string): string {
 
 export default function Attendance() {
   const { currentUser, users, attendance, markAttendance } = useERPStore()
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const [selectedDate, setSelectedDate] = useState(today)
   const [pendingStatuses, setPendingStatuses] = useState<Record<string, AttendanceStatus>>({})
   const [myAttendanceOpen, setMyAttendanceOpen] = useState(false)
@@ -137,6 +138,7 @@ export default function Attendance() {
   }
 
   function handleSaveAll() {
+    if (!currentUser) return
     managedUsers.forEach(u => {
       const status = pendingStatuses[u.id] ?? getAttendance(u.id, selectedDate)
       if (status) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   CalendarDays,
   Target,
@@ -51,7 +51,7 @@ export default function WeeklyPlan() {
     getWeekScore,
     submitWeeklyPlan,
     getWeekBounds,
-    assignedTasks,
+    morningPlans,
     eveningActuals,
   } = useERPStore()
 
@@ -61,7 +61,8 @@ export default function WeeklyPlan() {
   const prevWeekId = getPrevWeekId()
   const { start: weekStart, end: weekEnd } = getWeekBounds(currentWeekId)
 
-  const user = currentUser!
+  if (!currentUser) return <Navigate to="/login" replace />
+  const user = currentUser
   const team = user?.team ?? 'OSR'
   const teamDefaults: KPITarget = DEFAULT_KPI_TARGETS[team] ?? {}
   const kpiKeys = Object.keys(teamDefaults)
@@ -75,28 +76,34 @@ export default function WeeklyPlan() {
   // Carry-forward: pending assigned tasks from last week
   const lastWeekDates = (() => {
     const dates: string[] = []
-    const start = new Date(prevStart)
-    const end = new Date(prevEnd)
-    const cur = new Date(start)
+    const cur = new Date(prevStart + 'T00:00:00')
+    const end = new Date(prevEnd + 'T00:00:00')
     while (cur <= end) {
-      dates.push(cur.toISOString().split('T')[0])
+      const y = cur.getFullYear()
+      const m = String(cur.getMonth() + 1).padStart(2, '0')
+      const d = String(cur.getDate()).padStart(2, '0')
+      dates.push(`${y}-${m}-${d}`)
       cur.setDate(cur.getDate() + 1)
     }
     return dates
   })()
 
+  // Carry-forward: tasks reported partial/not_done in last week's evening reports,
+  // resolved back to the task text via that day's morning plan (taskIndex)
   const carryForwardItems: string[] = (() => {
     const items: string[] = []
     for (const date of lastWeekDates) {
       const evening = eveningActuals.find(
         (e) => e.userId === user.id && e.date === date
       )
-      if (evening?.taskStatus) {
-        for (const ts of evening.taskStatus) {
-          if (ts.status === 'pending' || ts.status === 'rescheduled') {
-            const task = assignedTasks.find((t) => t.id === ts.taskId)
-            if (task) items.push(task.title)
-          }
+      if (!evening?.taskStatus) continue
+      const morning = morningPlans.find(
+        (p) => p.userId === user.id && p.date === date
+      )
+      for (const ts of evening.taskStatus) {
+        if (ts.status === 'partial' || ts.status === 'not_done') {
+          const text = morning?.tasks[ts.taskIndex]?.text
+          if (text) items.push(text)
         }
       }
     }
@@ -136,7 +143,7 @@ export default function WeeklyPlan() {
   }
 
   const handleSubmit = () => {
-    if (!isMonday || planLocked) return
+    if (planLocked) return
 
     const kpiTargets: KPITarget = {} as KPITarget
     for (const key of kpiKeys) {
@@ -203,10 +210,10 @@ export default function WeeklyPlan() {
             <Info className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-blue-800 text-sm">
-                Weekly plan is submitted on Mondays.
+                Weekly plans are ideally set on Monday.
               </p>
               <p className="text-blue-700 text-sm mt-0.5">
-                You can view this week's plan below. Editing will be available next Monday.
+                You haven't set a plan for this week yet — submit it now so your daily KPIs count.
               </p>
             </div>
           </div>
@@ -423,9 +430,9 @@ export default function WeeklyPlan() {
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleSubmit}
-            disabled={!isMonday || planLocked}
+            disabled={planLocked}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
-              !isMonday || planLocked
+              planLocked
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-95'
             }`}
@@ -433,10 +440,6 @@ export default function WeeklyPlan() {
             {planLocked ? (
               <>
                 <Lock className="w-4 h-4" /> Plan Submitted
-              </>
-            ) : !isMonday ? (
-              <>
-                <Info className="w-4 h-4" /> Available on Monday
               </>
             ) : (
               <>

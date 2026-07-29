@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import { useNavigate } from 'react-router-dom'
 import {
   Moon, Clock, AlertTriangle, CheckCircle, ChevronRight,
@@ -63,7 +64,7 @@ function gradeColor(grade: string): string {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayLocal()
 }
 
 function formatDate(dateStr: string): string {
@@ -341,7 +342,7 @@ export default function EveningLanding() {
       kpiActual: kpiActualTyped,
       kpiGap: kpiGapTyped,
       taskStatus: taskStatusRecords,
-      newLeads: newLeads.map(l => ({
+      newLeads: newLeads.filter(l => l.name.trim()).map(l => ({
         userId: currentUser.id,
         name: l.name,
         company: l.company,
@@ -349,7 +350,7 @@ export default function EveningLanding() {
         expectedValue: l.expectedValue,
         stage: l.stage,
         source: 'evening_form',
-        nextFollowUp: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        nextFollowUp: fmtLocalDate(new Date(Date.now() + 86400000)),
       })),
       winOfDay,
       kalKaPriority,
@@ -368,7 +369,7 @@ export default function EveningLanding() {
           expectedValue: l.expectedValue,
           stage: l.stage,
           source: 'evening_form',
-          nextFollowUp: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          nextFollowUp: fmtLocalDate(new Date(Date.now() + 86400000)),
         })
       }
     })

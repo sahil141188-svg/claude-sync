@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Copy, CheckCircle, AlertTriangle, Rocket } from 'lucide-react'
 import { useERPStore, KPI_LABELS, DEFAULT_KPI_TARGETS } from '../store/erpStore'
@@ -13,7 +14,7 @@ interface TaskRow {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayLocal()
 }
 
 function getWeekId(date?: Date): string {
@@ -36,7 +37,7 @@ function getWeekId(date?: Date): string {
 function yesterdayStr(): string {
   const d = new Date()
   d.setDate(d.getDate() - 1)
-  return d.toISOString().split('T')[0]
+  return fmtLocalDate(d)
 }
 
 function formatDateTime(iso: string): string {
@@ -141,7 +142,7 @@ export default function MorningLaunch() {
     if (alreadySubmitted && existing) {
       return existing.tasks.map((t) => ({
         text: t.text,
-        priority: t.priority as Priority,
+        priority: (t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) as Priority,
         carryForward: t.carryForward,
       }))
     }
@@ -180,6 +181,7 @@ export default function MorningLaunch() {
 
   // WhatsApp brief
   function buildWhatsAppBrief(): string {
+    if (!currentUser) return ''
     const dateLabel = formatDate(today)
     const kpiLine = kpiKeys
       .map((k) => `${KPI_LABELS[k] ?? k}: ${(kpiCommitment as any)[k] ?? 0}`)
@@ -204,9 +206,10 @@ export default function MorningLaunch() {
   }
 
   function handleSubmit() {
+    if (!currentUser) return
     const filteredTasks: Task[] = tasks
       .filter((t) => t.text.trim())
-      .map((t) => ({ text: t.text.trim(), priority: t.priority, carryForward: t.carryForward }))
+      .map((t) => ({ text: t.text.trim(), priority: t.priority.toLowerCase() as Task['priority'], carryForward: t.carryForward }))
 
     const isOnTime = now.getHours() < 10 || (now.getHours() === 10 && now.getMinutes() === 0)
 

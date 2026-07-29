@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Users,
@@ -26,12 +27,12 @@ function getWeekDates(): string[] {
   return Array.from({ length: 6 }, (_, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    return d.toISOString().split('T')[0]
+    return fmtLocalDate(d)
   })
 }
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayLocal()
 }
 
 function formatDate(d: Date): string {
@@ -103,6 +104,16 @@ export default function ManagerDashboard() {
   const teamMembers = getTeamMembers(currentUser.id)
   const today = todayStr()
   const weekId = getWeekId()
+  const prevWeekId = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 7)
+    d.setHours(0, 0, 0, 0)
+    const thursday = new Date(d)
+    thursday.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3)
+    const yearStart = new Date(thursday.getFullYear(), 0, 4)
+    const week = 1 + Math.round(((thursday.getTime() - yearStart.getTime()) / 86400000 - 3 + ((yearStart.getDay() + 6) % 7)) / 7)
+    return `${thursday.getFullYear()}-W${String(week).padStart(2, '0')}`
+  })()
   const weekDates = getWeekDates()
 
   // Per-member derived data
@@ -167,7 +178,7 @@ export default function ManagerDashboard() {
   }
 
   function handleSaveTask() {
-    if (!newTask.assignedTo || !newTask.title) return
+    if (!currentUser || !newTask.assignedTo || !newTask.title) return
     assignTask({
       assignedTo: newTask.assignedTo,
       assignedBy: currentUser.id,
@@ -184,7 +195,7 @@ export default function ManagerDashboard() {
 
   function handleAddNote(memberId: string) {
     const text = newNoteText[memberId]?.trim()
-    if (!text) return
+    if (!text || !currentUser) return
     addCoachingNote({ memberId, managerId: currentUser.id, note: text })
     setNewNoteText(prev => ({ ...prev, [memberId]: '' }))
   }
@@ -477,7 +488,7 @@ export default function ManagerDashboard() {
           <div className="space-y-3">
             {teamMembers.map(member => {
               const memberTasks = assignedTasks.filter(
-                t => t.assignedTo === member.id && t.status !== 'approved' && t.status !== 'cancelled'
+                t => t.assignedTo === member.id && t.status !== 'approved' && t.status !== 'rejected'
               )
               if (memberTasks.length === 0) return null
               return (
@@ -597,10 +608,9 @@ export default function ManagerDashboard() {
               </thead>
               <tbody>
                 {memberData.map(({ member, dayScores, totalScore, grade, weekScore }) => {
-                  const lastWeekScore = weekScores.find(s => {
-                    // Approximate: compare by finding a score with a different weekId
-                    return s.userId === member.id && s.weekId !== weekId
-                  })
+                  const lastWeekScore = weekScores.find(
+                    s => s.userId === member.id && s.weekId === prevWeekId
+                  )
                   const delta = lastWeekScore ? totalScore - lastWeekScore.finalScore : null
 
                   return (

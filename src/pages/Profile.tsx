@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   Lock,
   LogOut,
@@ -125,8 +125,7 @@ export default function Profile() {
   }, [darkMode])
 
   if (!currentUser) {
-    navigate('/login')
-    return null
+    return <Navigate to="/login" replace />
   }
 
   const joinDate = new Date(currentUser.joinDate)
@@ -166,21 +165,16 @@ export default function Profile() {
       return
     }
 
-    useERPStore.setState((state) => ({
-      users: state.users.map((u) =>
-        u.id === currentUser!.id ? { ...u, pin: newPin } : u
-      ),
-      currentUser:
-        state.currentUser?.id === currentUser!.id
-          ? { ...state.currentUser, pin: newPin }
-          : state.currentUser,
-    }))
+    const result = useERPStore.getState().changePin(currentUser!.id, newPin)
+    if (!result.ok) {
+      setPinError(result.error ?? 'Could not change PIN')
+      return
+    }
 
     setOldPin('')
     setNewPin('')
     setConfirmPin('')
     setPinSuccess(true)
-    setShowPinChange(false)
   }
 
   function handleLogout() {

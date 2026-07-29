@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
+import type { ReactElement } from 'react'
+import { useERPStore } from './store/erpStore'
+import type { UserRole } from './types'
 
 const Login = lazy(() => import('./pages/Login'))
 const Layout = lazy(() => import('./pages/Layout'))
@@ -36,14 +39,24 @@ const LoadingFallback = () => (
   </div>
 )
 
-const user = localStorage.getItem('user')
-
 const ProtectedLayout = () => {
-  if (!localStorage.getItem('user')) {
+  const currentUser = useERPStore(s => s.currentUser)
+  if (!currentUser) {
     return <Navigate to="/login" replace />
   }
   return <Layout />
 }
+
+const RequireRole = ({ roles, children }: { roles: UserRole[]; children: ReactElement }) => {
+  const currentUser = useERPStore(s => s.currentUser)
+  if (!currentUser || !roles.includes(currentUser.role)) {
+    return <Navigate to="/" replace />
+  }
+  return children
+}
+
+const MANAGER_UP: UserRole[] = ['manager', 'admin', 'super_admin']
+const ADMIN_UP: UserRole[] = ['admin', 'super_admin']
 
 export default function App() {
   return (
@@ -53,18 +66,18 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedLayout />}>
             <Route index element={<MyDashboard />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="dashboard" element={<RequireRole roles={ADMIN_UP}><AdminDashboard /></RequireRole>} />
             <Route path="weekly-plan" element={<WeeklyPlan />} />
             <Route path="morning" element={<MorningLaunch />} />
             <Route path="evening" element={<EveningLanding />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="scorecard" element={<ScoreCard />} />
-            <Route path="scorecard/:userId" element={<ScoreCard />} />
-            <Route path="manager" element={<ManagerDashboard />} />
+            <Route path="scorecard/:userId" element={<RequireRole roles={MANAGER_UP}><ScoreCard /></RequireRole>} />
+            <Route path="manager" element={<RequireRole roles={MANAGER_UP}><ManagerDashboard /></RequireRole>} />
             <Route path="leads" element={<LeadTracker />} />
             <Route path="attendance" element={<Attendance />} />
-            <Route path="warnings" element={<Warnings />} />
-            <Route path="reports" element={<Reports />} />
+            <Route path="warnings" element={<RequireRole roles={MANAGER_UP}><Warnings /></RequireRole>} />
+            <Route path="reports" element={<RequireRole roles={MANAGER_UP}><Reports /></RequireRole>} />
             <Route path="playbook" element={<Playbook />} />
             <Route path="profile" element={<Profile />} />
           </Route>

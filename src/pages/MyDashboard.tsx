@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import {
   Sun,
   Moon,
@@ -36,7 +37,7 @@ function formatTime(iso: string): string {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayLocal()
 }
 
 function formatDate(d: Date): string {
@@ -86,7 +87,12 @@ export default function MyDashboard() {
     const cursor = new Date()
     cursor.setDate(cursor.getDate() - 1)
     for (let i = 0; i < 30; i++) {
-      const d = cursor.toISOString().split('T')[0]
+      // Sundays are non-working days — skip them, don't break the streak
+      if (cursor.getDay() === 0) {
+        cursor.setDate(cursor.getDate() - 1)
+        continue
+      }
+      const d = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
       const hasMorning = useERPStore.getState().morningPlans.some(
         p => p.userId === currentUser.id && p.date === d
       )
@@ -107,7 +113,7 @@ export default function MyDashboard() {
     const c = new Date(weekStart)
     const e = new Date(weekEnd)
     while (c <= e) {
-      weekDays.push(c.toISOString().split('T')[0])
+      weekDays.push(fmtLocalDate(c))
       c.setDate(c.getDate() + 1)
     }
   }
@@ -280,7 +286,7 @@ export default function MyDashboard() {
             {[
               { icon: <Sun size={20} />, label: 'Morning', path: '/morning', color: 'text-orange-500 bg-orange-50 border-orange-200' },
               { icon: <Moon size={20} />, label: 'Evening', path: '/evening', color: 'text-purple-500 bg-purple-50 border-purple-200' },
-              { icon: <BarChart2 size={20} />, label: 'Weekly', path: '/weekly', color: 'text-blue-500 bg-blue-50 border-blue-200' },
+              { icon: <BarChart2 size={20} />, label: 'Weekly', path: '/weekly-plan', color: 'text-blue-500 bg-blue-50 border-blue-200' },
               { icon: <Target size={20} />, label: 'Leads', path: '/leads', color: 'text-green-500 bg-green-50 border-green-200' },
             ].map(action => (
               <button

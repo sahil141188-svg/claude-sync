@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Trophy,
@@ -19,47 +19,56 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import useERPStore, { KPI_LABELS, DEFAULT_KPI_TARGETS } from '../store/erpStore'
+import type { DayScore } from '../types'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+function fmtLocalDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Same ISO week algorithm as the store, so weekIds always match store data
 function getWeekId(offset = 0): string {
   const d = new Date()
   d.setDate(d.getDate() - offset * 7)
-  const year = d.getFullYear()
-  const start = new Date(d)
-  start.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-  const week = Math.ceil(
-    ((start.getTime() - new Date(year, 0, 1).getTime()) / 86400000 + 1) / 7
-  )
-  return `${year}-W${String(week).padStart(2, '0')}`
+  d.setHours(0, 0, 0, 0)
+  const thursday = new Date(d)
+  thursday.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3)
+  const yearStart = new Date(thursday.getFullYear(), 0, 4)
+  const week =
+    1 +
+    Math.round(
+      ((thursday.getTime() - yearStart.getTime()) / 86400000 -
+        3 +
+        ((yearStart.getDay() + 6) % 7)) /
+        7
+    )
+  return `${thursday.getFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
 function getWeekBounds(weekId: string): { start: string; end: string } {
   const [yearStr, wStr] = weekId.split('-W')
   const year = parseInt(yearStr)
   const week = parseInt(wStr)
-  const jan1 = new Date(year, 0, 1)
-  const dayOfWeek = jan1.getDay()
-  const mondayOffset = dayOfWeek <= 1 ? 1 - dayOfWeek : 8 - dayOfWeek
-  const firstMonday = new Date(jan1)
-  firstMonday.setDate(jan1.getDate() + mondayOffset)
-  const start = new Date(firstMonday)
-  start.setDate(firstMonday.getDate() + (week - 1) * 7)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 5)
-  return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
-  }
+  const jan4 = new Date(year, 0, 4)
+  const dayOfWeek = (jan4.getDay() + 6) % 7
+  const monday = new Date(jan4)
+  monday.setDate(jan4.getDate() - dayOfWeek + (week - 1) * 7)
+  const end = new Date(monday)
+  end.setDate(monday.getDate() + 5)
+  return { start: fmtLocalDate(monday), end: fmtLocalDate(end) }
 }
 
 function getDatesInWeek(weekId: string): string[] {
   const { start, end } = getWeekBounds(weekId)
   const dates: string[] = []
-  const cur = new Date(start)
-  const endDate = new Date(end)
+  const cur = new Date(start + 'T00:00:00')
+  const endDate = new Date(end + 'T00:00:00')
   while (cur <= endDate) {
-    dates.push(cur.toISOString().split('T')[0])
+    dates.push(fmtLocalDate(cur))
     cur.setDate(cur.getDate() + 1)
   }
   return dates
@@ -95,6 +104,22 @@ function gradeBadgeColor(grade: string): string {
   }
 }
 
+function dayIssues(ds: DayScore | null): string[] {
+  if (!ds) return []
+  const issues: string[] = []
+  if (!ds.morningDone) {
+    if (ds.kpiDeductions < 0) issues.push('No morning plan')
+  } else if (!ds.eveningDone) {
+    issues.push('Morning plan but no evening report')
+  } else if (ds.kpiDeductions < 0) {
+    issues.push(`KPI shortfall: ${ds.kpiDeductions} pts`)
+  }
+  if (ds.taskPenalties < 0) issues.push(`Task penalties: ${ds.taskPenalties} pts`)
+  if (ds.attendancePoints === -10) issues.push('Absent')
+  if (ds.attendancePoints === -3) issues.push('Late')
+  return issues
+}
+
 function cellColor(pct: number): string {
   if (pct >= 100) return 'bg-green-100 text-green-800'
   if (pct >= 80)  return 'bg-yellow-100 text-yellow-800'
@@ -123,13 +148,17 @@ export default function ScoreCard() {
   const currentWeekId = getWeekId(0)
   const weekId = currentWeekId
 
-  // Ensure score is computed
+  // Ensure the score exists in the store — computed in an effect, never during render
+  useEffect(() => {
+    if (targetUser && !weekScores.some(s => s.userId === targetUser.id && s.weekId === weekId)) {
+      computeWeekScore(targetUser.id, weekId)
+    }
+  }, [targetUser, weekScores, weekId, computeWeekScore])
+
   const weekScore = useMemo(() => {
     if (!targetUser) return null
-    const existing = weekScores.find(s => s.userId === targetUser.id && s.weekId === weekId)
-    if (existing) return existing
-    return computeWeekScore(targetUser.id, weekId)
-  }, [targetUser, weekScores, weekId, computeWeekScore])
+    return weekScores.find(s => s.userId === targetUser.id && s.weekId === weekId) ?? null
+  }, [targetUser, weekScores, weekId])
 
   const dates = useMemo(() => getDatesInWeek(weekId), [weekId])
   const { start, end } = useMemo(() => getWeekBounds(weekId), [weekId])
@@ -147,9 +176,7 @@ export default function ScoreCard() {
       const att = attendance.find(a => a.userId === targetUser.id && a.date === date)
       const committed: Record<string, number> = morning ? (morning.kpiCommitment as Record<string, number>) : {}
       const actual: Record<string, number> = evening ? (evening.kpiActual as Record<string, number>) : {}
-      const dayScoreEntry = (weekScore as any)?.dayScores?.find
-        ? (weekScore as any).dayScores.find((d: any) => d.date === date)
-        : null
+      const dayScoreEntry = weekScore?.dailyScores[date] ?? null
       return { date, morning, evening, att, committed, actual, dayScore: dayScoreEntry }
     })
   }, [targetUser, dates, morningPlans, eveningActuals, attendance, weekScore])
@@ -180,7 +207,7 @@ export default function ScoreCard() {
     )
     const scores = teamMembers.map(u => {
       const s = weekScores.find(ws => ws.userId === u.id && ws.weekId === weekId)
-      return { userId: u.id, score: s ? (s as any).finalScore ?? 0 : 0 }
+      return { userId: u.id, score: s?.finalScore ?? -999 }
     })
     scores.sort((a, b) => b.score - a.score)
     const idx = scores.findIndex(s => s.userId === targetUser.id)
@@ -193,37 +220,27 @@ export default function ScoreCard() {
     return Array.from({ length: 6 }, (_, i) => {
       const wid = getWeekId(5 - i)
       const s = weekScores.find(ws => ws.userId === targetUser.id && ws.weekId === wid)
-      return { weekId: wid, grade: s ? (s as any).grade ?? '–' : '–' }
+      return { weekId: wid, grade: s?.grade ?? '–' }
     })
   }, [targetUser, weekScores])
 
-  // Score breakdown
+  // Score breakdown — read directly from the store's typed DayScore fields
   const breakdown = useMemo(() => {
-    const ds: any[] = (weekScore as any)?.dayScores ?? []
-    let missingPlans = 0
-    let missingPlansDays = 0
-    let kpiDeductions = 0
-    let taskPenalties = 0
-    let attendancePenalty = 0
-    let bonus = 0
+    const todayStr = fmtLocalDate(new Date())
+    const days = Object.values(weekScore?.dailyScores ?? {}).filter(d => d.date <= todayStr)
 
-    for (const d of ds) {
-      const score: number = d.score ?? d.total ?? 0
-      const issues: string[] = d.issues ?? []
-      const hasMissing = issues.some((i: string) => i.includes('morning plan') || i.includes('No morning'))
-      if (hasMissing) {
-        missingPlans += -10
-        missingPlansDays++
-      }
-      const kpiIssues = issues.filter((i: string) => i.includes('achieved'))
-      kpiDeductions += kpiIssues.length > 0 ? -kpiIssues.length * 5 : 0
-      const attIssues = issues.filter((i: string) => i === 'Absent' || i === 'Late')
-      for (const a of attIssues) {
-        if (a === 'Absent') attendancePenalty -= 10
-        if (a === 'Late') attendancePenalty -= 3
-      }
-      if (score > 0) bonus += score
-    }
+    const missingDays = days.filter(d => !d.morningDone)
+    const missingPlansDays = missingDays.length
+    const missingPlans = missingDays.reduce((s, d) => s + d.kpiDeductions, 0)
+    const eveningMissing = days
+      .filter(d => d.morningDone && !d.eveningDone)
+      .reduce((s, d) => s + d.kpiDeductions, 0)
+    const kpiDeductions =
+      days.filter(d => d.morningDone && d.eveningDone).reduce((s, d) => s + d.kpiDeductions, 0) +
+      eveningMissing
+    const taskPenalties = days.reduce((s, d) => s + d.taskPenalties, 0)
+    const attendancePenalty = days.reduce((s, d) => s + d.attendancePoints, 0)
+    const bonus = days.reduce((s, d) => s + d.bonusPoints, 0)
 
     return { missingPlans, missingPlansDays, kpiDeductions, taskPenalties, attendancePenalty, bonus }
   }, [weekScore])
@@ -231,11 +248,13 @@ export default function ScoreCard() {
   // Attendance summary
   const attSummary = useMemo(() => {
     if (!targetUser) return { present: 0, late: 0, absent: 0, pct: 0 }
-    const records = dates.map(d => attendance.find(a => a.userId === targetUser.id && a.date === d))
+    const todayStr = fmtLocalDate(new Date())
+    const elapsed = dates.filter(d => d <= todayStr)
+    const records = elapsed.map(d => attendance.find(a => a.userId === targetUser.id && a.date === d))
     const present = records.filter(r => r?.status === 'present' || r?.status === 'wfh' || r?.status === 'meeting').length
     const late = records.filter(r => r?.status === 'late').length
     const absent = records.filter(r => r?.status === 'absent').length
-    const pct = Math.round(((present + late) / dates.length) * 100)
+    const pct = elapsed.length > 0 ? Math.round(((present + late) / elapsed.length) * 100) : 0
     return { present, late, absent, pct }
   }, [targetUser, dates, attendance])
 
@@ -394,7 +413,7 @@ export default function ScoreCard() {
             <tr className="bg-gray-100 font-semibold">
               <td className="px-3 py-2 border border-gray-200 text-gray-700">Day Score</td>
               {dayData.map(dd => {
-                const s = dd.dayScore?.score ?? dd.dayScore?.total ?? 0
+                const s = dd.dayScore?.total ?? 0
                 return (
                   <td key={dd.date} className={`px-2 py-2 border border-gray-200 text-center ${s >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                     {s > 0 ? `+${s}` : s}
@@ -417,7 +436,7 @@ export default function ScoreCard() {
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {dayData.map(dd => {
-            const dayS = dd.dayScore?.score ?? dd.dayScore?.total ?? 0
+            const dayS = dd.dayScore?.total ?? 0
             const isExpanded = expandedDay === dd.date
             return (
               <div key={dd.date} className="space-y-1">
@@ -490,9 +509,9 @@ export default function ScoreCard() {
               ) : (
                 <p className="text-sm text-gray-500">No data submitted for this day.</p>
               )}
-              {dd.dayScore?.issues?.length > 0 && (
+              {dayIssues(dd.dayScore).length > 0 && (
                 <div className="mt-3">
-                  {dd.dayScore.issues.map((issue: string, i: number) => (
+                  {dayIssues(dd.dayScore).map((issue, i) => (
                     <div key={i} className="flex items-center gap-1.5 text-xs text-orange-700 mt-1">
                       <AlertTriangle className="w-3.5 h-3.5" /> {issue}
                     </div>

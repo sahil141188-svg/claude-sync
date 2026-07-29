@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import useERPStore, { KPI_LABELS, DEFAULT_KPI_TARGETS } from '../store/erpStore'
 import {
   BarChart,
@@ -40,6 +40,30 @@ const GRADE_COLOR: Record<string, string> = {
   F: '#7f1d1d',
 }
 
+function fmtLocalDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function getWeekIdOf(date: Date): string {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const thursday = new Date(d)
+  thursday.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3)
+  const yearStart = new Date(thursday.getFullYear(), 0, 4)
+  const week =
+    1 +
+    Math.round(
+      ((thursday.getTime() - yearStart.getTime()) / 86400000 -
+        3 +
+        ((yearStart.getDay() + 6) % 7)) /
+        7
+    )
+  return `${thursday.getFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
 function getWeekIdFromOffset(offset: number): string {
   const d = new Date()
   d.setDate(d.getDate() + offset * 7)
@@ -68,16 +92,15 @@ function getWeekBoundsLocal(weekId: string): { start: string; end: string } {
   monday.setDate(jan4.getDate() - dayOfWeek + (week - 1) * 7)
   const saturday = new Date(monday)
   saturday.setDate(monday.getDate() + 5)
-  const fmt = (d: Date) => d.toISOString().split('T')[0]
-  return { start: fmt(monday), end: fmt(saturday) }
+  return { start: fmtLocalDate(monday), end: fmtLocalDate(saturday) }
 }
 
 function getWeekDates(weekId: string): string[] {
   const { start } = getWeekBoundsLocal(weekId)
   const dates: string[] = []
-  const cursor = new Date(start)
+  const cursor = new Date(start + 'T00:00:00')
   for (let i = 0; i < 6; i++) {
-    dates.push(cursor.toISOString().split('T')[0])
+    dates.push(fmtLocalDate(cursor))
     cursor.setDate(cursor.getDate() + 1)
   }
   return dates
@@ -101,12 +124,12 @@ function scoreColor(score: number): string {
 }
 
 export default function Reports() {
-  const { users, morningPlans, eveningActuals, weeklyPlans, leads, followUps, warnings } =
+  const { users, morningPlans, eveningActuals, weeklyPlans, leads, followUps, warnings, weekScores, computeWeekScore } =
     useERPStore()
 
   const [tab, setTab] = useState<Tab>('weekly')
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(fmtLocalDate(new Date()))
   const [kpiViewMode, setKpiViewMode] = useState<'team' | string>('team')
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({})
 
@@ -124,35 +147,39 @@ export default function Reports() {
     return `${fmt(s)} – ${fmt(e)}`
   }, [weekStart, weekEnd])
 
-  // Compute per-user per-day score from evening actuals todayScore or fallback
-  function getDayScore(userId: string, date: string): number | null {
-    const ev = eveningActuals.find(e => e.userId === userId && e.date === date)
-    if (!ev) {
-      const mp = morningPlans.find(p => p.userId === userId && p.date === date)
-      if (!mp) return null
-      return -5
-    }
-    return typeof ev.todayScore === 'number' ? ev.todayScore : 0
-  }
+  // Single source of truth: the store's computed week scores.
+  // Make sure scores exist for every week this page can display.
+  useEffect(() => {
+    const wids = new Set<string>([weekId, getWeekIdOf(new Date(selectedDate + 'T00:00:00'))])
+    for (let i = 0; i < 4; i++) wids.add(getWeekIdFromOffset(-i))
+    salesExecs.forEach(u => wids.forEach(wid => computeWeekScore(u.id, wid)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekId, selectedDate, salesExecs, morningPlans, eveningActuals])
 
-  // Compute total score for week
-  function getWeekTotal(userId: string): number {
-    return weekDates.reduce((sum, date) => sum + (getDayScore(userId, date) ?? 0), 0)
+  function getDayScore(userId: string, date: string): number | null {
+    const wid = getWeekIdOf(new Date(date + 'T00:00:00'))
+    const ws = weekScores.find(s => s.userId === userId && s.weekId === wid)
+    const ds = ws?.dailyScores[date]
+    if (!ds) return null
+    if (!ds.morningDone && !ds.eveningDone && ds.total === 0) return null
+    return ds.total
   }
 
   // ---- WEEKLY SCORECARD ----
   const scorecardRows = useMemo(() => {
     return salesExecs.map(user => {
-      const dayScores = weekDates.map(date => getDayScore(user.id, date))
-      const total = dayScores.reduce((s, v) => s + (v ?? 0), 0)
-      const grade = gradeFromScore(total)
-      const daysWithEvening = weekDates.filter(date =>
-        eveningActuals.some(e => e.userId === user.id && e.date === date)
-      ).length
-      const achievementPct = daysWithEvening > 0 ? Math.min(100, Math.round(((total + daysWithEvening * 10) / (daysWithEvening * 10)) * 100)) : 0
+      const ws = weekScores.find(s => s.userId === user.id && s.weekId === weekId)
+      const dayScores = weekDates.map(date => {
+        const ds = ws?.dailyScores[date]
+        if (!ds || (!ds.morningDone && !ds.eveningDone && ds.total === 0)) return null
+        return ds.total
+      })
+      const total = ws?.finalScore ?? 0
+      const grade = ws?.grade ?? gradeFromScore(total)
+      const achievementPct = Math.round(ws?.achievementPct ?? 0)
       return { user, dayScores, total, grade, achievementPct }
     })
-  }, [salesExecs, weekDates, eveningActuals])
+  }, [salesExecs, weekDates, weekId, weekScores])
 
   // ---- KPI PERFORMANCE CHART ----
   function getKpiChartData(userId?: string): { name: string; pct: number }[] {
@@ -361,7 +388,7 @@ export default function Reports() {
               <div className="text-xs text-gray-400">{weekLabel}</div>
             </div>
             <button
-              onClick={() => setWeekOffset(o => o + 1)}
+              onClick={() => setWeekOffset(o => Math.min(0, o + 1))}
               className="p-1 rounded hover:bg-gray-800 transition-colors"
             >
               <ChevronRight size={20} />

@@ -1,8 +1,23 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User, WeeklyPlan, DailyMorning, DailyEvening, WeekScore, Lead, FollowUp, AttendanceRecord, AssignedTask, Warning, CoachingNote, KPITarget, Grade, TaskStatus, DayScore } from '../types'
+import type { User, WeeklyPlan, DailyMorning, DailyEvening, WeekScore, Lead, FollowUp, AttendanceRecord, AssignedTask, Warning, CoachingNote, KPITarget, Grade, TaskStatus, DayScore, Badge } from '../types'
 
 // Helper functions
+
+// All calendar dates in the app are LOCAL dates formatted as YYYY-MM-DD.
+// Never use toISOString() for calendar dates — it shifts to UTC and lands on
+// the previous day for timezones east of UTC (IST = UTC+5:30).
+function fmtLocalDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(n => parseInt(n, 10))
+  return new Date(y, m - 1, d)
+}
 
 function getWeekId(date?: Date): string {
   const d = date ? new Date(date) : new Date()
@@ -26,8 +41,7 @@ function getWeekBounds(weekId: string): { start: string; end: string } {
   monday.setDate(jan4.getDate() - dayOfWeek + (week - 1) * 7)
   const saturday = new Date(monday)
   saturday.setDate(monday.getDate() + 5)
-  const fmt = (d: Date) => d.toISOString().split('T')[0]
-  return { start: fmt(monday), end: fmt(saturday) }
+  return { start: fmtLocalDate(monday), end: fmtLocalDate(saturday) }
 }
 
 function uid(): string {
@@ -44,32 +58,25 @@ function computeGrade(score: number): Grade {
 }
 
 function today(): string {
-  return new Date().toISOString().split('T')[0]
+  return fmtLocalDate(new Date())
 }
 
-// Badge type (not in types import but referenced in state)
-interface Badge {
-  id: string
-  label: string
-  awardedAt: string
-}
-
-// Demo users
+// Demo users — stable IDs so persisted data survives reloads consistently
 const DEMO_USERS: User[] = [
-  { id: uid(), name: 'Shiv Kumar',          team: 'OSR', role: 'sales_exec',  pin: '1234' },
-  { id: uid(), name: 'Sourabh',             team: 'OSR', role: 'sales_exec',  pin: '1235' },
-  { id: uid(), name: 'Uzefa',               team: 'CRR', role: 'sales_exec',  pin: '1236' },
-  { id: uid(), name: 'Charanpreet',         team: 'CRR', role: 'sales_exec',  pin: '1237' },
-  { id: uid(), name: 'Sadhna',              team: 'NBD', role: 'sales_exec',  pin: '1238' },
-  { id: uid(), name: 'Alka',                team: 'NBD', role: 'sales_exec',  pin: '1239' },
-  { id: uid(), name: 'Chandresh Tripathi',  team: 'FSR', role: 'sales_exec',  pin: '1240' },
-  { id: uid(), name: 'Gopal Krishan',       team: 'FSR', role: 'sales_exec',  pin: '1241' },
-  { id: uid(), name: 'Mgr OSR',             team: 'OSR', role: 'manager',     pin: '2001' },
-  { id: uid(), name: 'Mgr CRR',             team: 'CRR', role: 'manager',     pin: '2002' },
-  { id: uid(), name: 'Mgr NBD',             team: 'NBD', role: 'manager',     pin: '2003' },
-  { id: uid(), name: 'Mgr FSR',             team: 'FSR', role: 'manager',     pin: '2004' },
-  { id: uid(), name: 'Admin',               team: 'OSR', role: 'admin',       pin: '9999' },
-  { id: uid(), name: 'CEO',                 team: 'OSR', role: 'super_admin', pin: '0000' },
+  { id: 'u-shiv',       name: 'Shiv Kumar',         team: 'OSR', role: 'sales_exec',  pin: '1234', joinDate: '2024-04-01', isActive: true, managerId: 'u-mgr-osr' },
+  { id: 'u-sourabh',    name: 'Sourabh',            team: 'OSR', role: 'sales_exec',  pin: '1235', joinDate: '2024-06-15', isActive: true, managerId: 'u-mgr-osr' },
+  { id: 'u-uzefa',      name: 'Uzefa',              team: 'CRR', role: 'sales_exec',  pin: '1236', joinDate: '2024-08-01', isActive: true, managerId: 'u-mgr-crr' },
+  { id: 'u-charanpreet', name: 'Charanpreet',       team: 'CRR', role: 'sales_exec',  pin: '1237', joinDate: '2025-01-10', isActive: true, managerId: 'u-mgr-crr' },
+  { id: 'u-sadhna',     name: 'Sadhna',             team: 'NBD', role: 'sales_exec',  pin: '1238', joinDate: '2025-02-01', isActive: true, managerId: 'u-mgr-nbd' },
+  { id: 'u-alka',       name: 'Alka',               team: 'NBD', role: 'sales_exec',  pin: '1239', joinDate: '2025-03-20', isActive: true, managerId: 'u-mgr-nbd' },
+  { id: 'u-chandresh',  name: 'Chandresh Tripathi', team: 'FSR', role: 'sales_exec',  pin: '1240', joinDate: '2024-11-05', isActive: true, managerId: 'u-mgr-fsr' },
+  { id: 'u-gopal',      name: 'Gopal Krishan',      team: 'FSR', role: 'sales_exec',  pin: '1241', joinDate: '2025-05-01', isActive: true, managerId: 'u-mgr-fsr' },
+  { id: 'u-mgr-osr',    name: 'Mgr OSR',            team: 'OSR', role: 'manager',     pin: '2001', joinDate: '2023-01-01', isActive: true },
+  { id: 'u-mgr-crr',    name: 'Mgr CRR',            team: 'CRR', role: 'manager',     pin: '2002', joinDate: '2023-01-01', isActive: true },
+  { id: 'u-mgr-nbd',    name: 'Mgr NBD',            team: 'NBD', role: 'manager',     pin: '2003', joinDate: '2023-01-01', isActive: true },
+  { id: 'u-mgr-fsr',    name: 'Mgr FSR',            team: 'FSR', role: 'manager',     pin: '2004', joinDate: '2023-01-01', isActive: true },
+  { id: 'u-admin',      name: 'Admin',              team: 'OSR', role: 'admin',       pin: '9999', joinDate: '2022-01-01', isActive: true },
+  { id: 'u-ceo',        name: 'CEO',                team: 'OSR', role: 'super_admin', pin: '0000', joinDate: '2020-01-01', isActive: true },
 ]
 
 export const DEFAULT_KPI_TARGETS: Record<string, KPITarget> = {
@@ -126,7 +133,10 @@ interface ERPState {
   updateFollowUp(id: string, updates: Partial<FollowUp>): void
   assignTask(task: Omit<AssignedTask, 'id' | 'createdAt' | 'updatedAt'>): void
   updateTaskStatus(taskId: string, status: TaskStatus, note?: string): void
+  addWarning(warning: Omit<Warning, 'id' | 'createdAt'>): void
+  updateWarning(id: string, updates: Partial<Warning>): void
   addCoachingNote(note: Omit<CoachingNote, 'id' | 'createdAt'>): void
+  changePin(userId: string, newPin: string): { ok: boolean; error?: string }
   computeWeekScore(userId: string, weekId?: string): WeekScore
   getAllWeekScores(weekId?: string): WeekScore[]
   getLeaderboard(weekId?: string): (WeekScore & { user: User })[]
@@ -137,7 +147,7 @@ interface ERPState {
   getWeekBounds(weekId: string): { start: string; end: string }
 }
 
-const useERPStore = create<ERPState>()(
+export const useERPStore = create<ERPState>()(
   persist(
     (set, get) => ({
       currentUser: null,
@@ -155,7 +165,7 @@ const useERPStore = create<ERPState>()(
       coachingNotes: [],
 
       login(pin: string): User | null {
-        const user = get().users.find(u => u.pin === pin) ?? null
+        const user = get().users.find(u => u.pin === pin && u.isActive !== false) ?? null
         set({ currentUser: user })
         return user
       },
@@ -197,6 +207,7 @@ const useERPStore = create<ERPState>()(
             morningPlans: [...state.morningPlans, { ...plan, id: uid() }],
           }))
         }
+        get().computeWeekScore(plan.userId, getWeekId(parseLocalDate(plan.date)))
       },
 
       submitEveningActual(actual: Omit<DailyEvening, 'id'>): void {
@@ -212,9 +223,7 @@ const useERPStore = create<ERPState>()(
             eveningActuals: [...state.eveningActuals, { ...actual, id: uid() }],
           }))
         }
-        // Recompute week score
-        const weekId = getWeekId(new Date(actual.date))
-        get().computeWeekScore(actual.userId, weekId)
+        get().computeWeekScore(actual.userId, getWeekId(parseLocalDate(actual.date)))
       },
 
       submitWeeklyPlan(plan: Omit<WeeklyPlan, 'id'>): void {
@@ -230,21 +239,24 @@ const useERPStore = create<ERPState>()(
             weeklyPlans: [...state.weeklyPlans, { ...plan, id: uid() }],
           }))
         }
+        get().computeWeekScore(plan.userId, plan.weekId)
       },
 
       markAttendance(userId: string, date: string, status: AttendanceRecord['status'], markedBy: string): void {
+        const markedAt = new Date().toISOString()
         const existing = get().attendance.find(a => a.userId === userId && a.date === date)
         if (existing) {
           set(state => ({
             attendance: state.attendance.map(a =>
-              a.id === existing.id ? { ...a, status, markedBy } : a
+              a.id === existing.id ? { ...a, status, markedBy, markedAt } : a
             ),
           }))
         } else {
           set(state => ({
-            attendance: [...state.attendance, { id: uid(), userId, date, status, markedBy }],
+            attendance: [...state.attendance, { id: uid(), userId, date, status, markedBy, markedAt }],
           }))
         }
+        get().computeWeekScore(userId, getWeekId(parseLocalDate(date)))
       },
 
       addLead(lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'score'>): void {
@@ -288,8 +300,22 @@ const useERPStore = create<ERPState>()(
         set(state => ({
           assignedTasks: state.assignedTasks.map(t =>
             t.id === taskId
-              ? { ...t, status, ...(note !== undefined ? { note } : {}), updatedAt: new Date().toISOString() }
+              ? { ...t, status, ...(note !== undefined ? { managerNote: note } : {}), updatedAt: new Date().toISOString() }
               : t
+          ),
+        }))
+      },
+
+      addWarning(warning: Omit<Warning, 'id' | 'createdAt'>): void {
+        set(state => ({
+          warnings: [...state.warnings, { ...warning, id: uid(), createdAt: new Date().toISOString() }],
+        }))
+      },
+
+      updateWarning(id: string, updates: Partial<Warning>): void {
+        set(state => ({
+          warnings: state.warnings.map(w =>
+            w.id === id ? { ...w, ...updates } : w
           ),
         }))
       },
@@ -301,131 +327,159 @@ const useERPStore = create<ERPState>()(
         }))
       },
 
+      changePin(userId: string, newPin: string): { ok: boolean; error?: string } {
+        if (!/^\d{4}$/.test(newPin)) return { ok: false, error: 'PIN must be exactly 4 digits' }
+        const taken = get().users.some(u => u.id !== userId && u.pin === newPin)
+        if (taken) return { ok: false, error: 'This PIN is already in use' }
+        set(state => ({
+          users: state.users.map(u => (u.id === userId ? { ...u, pin: newPin } : u)),
+          currentUser: state.currentUser?.id === userId ? { ...state.currentUser, pin: newPin } : state.currentUser,
+        }))
+        return { ok: true }
+      },
+
       computeWeekScore(userId: string, weekId?: string): WeekScore {
         const wid = weekId ?? getWeekId()
         const { start, end } = getWeekBounds(wid)
         const state = get()
-        const user = state.users.find(u => u.id === userId)
-        const team = user?.team ?? 'OSR'
-        const targets = DEFAULT_KPI_TARGETS[team] ?? {}
 
-        // Build date range Mon-Sat
+        // Build date range Mon–Sat, but only score days that have arrived
+        const t = today()
         const dates: string[] = []
-        const cursor = new Date(start)
-        const endDate = new Date(end)
+        const cursor = parseLocalDate(start)
+        const endDate = parseLocalDate(end)
         while (cursor <= endDate) {
-          dates.push(cursor.toISOString().split('T')[0])
+          dates.push(fmtLocalDate(cursor))
           cursor.setDate(cursor.getDate() + 1)
         }
 
-        let totalScore = 0
-        const dayScores: DayScore[] = []
+        const weeklyPlan = state.weeklyPlans.find(p => p.userId === userId && p.weekId === wid)
+
+        let totalDeduction = 0
+        let totalBonus = 0
+        const dailyScores: Record<string, DayScore> = {}
+        const weeklyKpiActual: Record<string, number> = {}
 
         for (const date of dates) {
-          let dayPoints = 0
-          const issues: string[] = []
-
           const morning = state.morningPlans.find(p => p.userId === userId && p.date === date)
           const evening = state.eveningActuals.find(e => e.userId === userId && e.date === date)
           const att = state.attendance.find(a => a.userId === userId && a.date === date)
 
+          // Accumulate weekly actuals regardless of scoring
+          if (evening) {
+            for (const [k, v] of Object.entries(evening.kpiActual)) {
+              if (typeof v === 'number') weeklyKpiActual[k] = (weeklyKpiActual[k] ?? 0) + v
+            }
+          }
+
+          if (date > t) {
+            // Future day — nothing to score yet
+            dailyScores[date] = { date, morningDone: false, eveningDone: false, kpiDeductions: 0, taskPenalties: 0, attendancePoints: 0, bonusPoints: 0, total: 0 }
+            continue
+          }
+
+          let kpiDeductions = 0
+          let taskPenalties = 0
+          let attendancePoints = 0
+          let bonusPoints = 0
+
           if (!morning) {
-            dayPoints -= 10
-            issues.push('No morning plan')
+            kpiDeductions -= 10
           } else if (!evening) {
-            dayPoints -= 5
-            issues.push('Morning plan but no evening actual')
+            kpiDeductions -= 5
           } else {
             // Compare committed KPIs vs actuals
-            const committed: Record<string, number> = (morning as any).kpis ?? {}
-            const actuals: Record<string, number> = (evening as any).kpis ?? {}
+            const committed = morning.kpiCommitment as Record<string, number | undefined>
+            const actuals = evening.kpiActual as Record<string, number | undefined>
 
-            for (const key of Object.keys(targets)) {
-              const target = (targets as Record<string, number>)[key]
-              if (!target) continue
+            for (const key of Object.keys(committed)) {
               const committedVal = committed[key] ?? 0
+              if (committedVal <= 0) continue
               const actualVal = actuals[key] ?? 0
-              if (committedVal === 0) continue
               const pct = (actualVal / committedVal) * 100
               if (pct >= 110) {
-                dayPoints += 5
+                bonusPoints += 5
               } else if (pct >= 100) {
                 // no deduction
               } else if (pct >= 90) {
-                dayPoints -= 5
-                issues.push(`${KPI_LABELS[key] ?? key}: ${Math.round(pct)}% achieved`)
+                kpiDeductions -= 5
               } else if (pct >= 70) {
-                dayPoints -= 10
-                issues.push(`${KPI_LABELS[key] ?? key}: ${Math.round(pct)}% achieved`)
+                kpiDeductions -= 10
               } else if (pct >= 50) {
-                dayPoints -= 15
-                issues.push(`${KPI_LABELS[key] ?? key}: ${Math.round(pct)}% achieved`)
+                kpiDeductions -= 15
               } else {
-                dayPoints -= 20
-                issues.push(`${KPI_LABELS[key] ?? key}: ${Math.round(pct)}% achieved`)
+                kpiDeductions -= 20
               }
+            }
+
+            // Task follow-through penalties from the evening report
+            for (const ts of evening.taskStatus) {
+              if (ts.status === 'partial') taskPenalties -= 5
+              else if (ts.status === 'not_done') taskPenalties -= 10
             }
           }
 
           // Attendance
           if (att?.status === 'absent') {
-            dayPoints -= 10
-            issues.push('Absent')
+            attendancePoints -= 10
           } else if (att?.status === 'late') {
-            dayPoints -= 3
-            issues.push('Late')
+            attendancePoints -= 3
           }
 
-          totalScore += dayPoints
-          dayScores.push({ date, score: dayPoints, issues })
+          const dayTotal = kpiDeductions + taskPenalties + attendancePoints + bonusPoints
+          totalDeduction += kpiDeductions + taskPenalties + attendancePoints
+          totalBonus += bonusPoints
+          dailyScores[date] = {
+            date,
+            morningDone: !!morning,
+            eveningDone: !!evening,
+            kpiDeductions,
+            taskPenalties,
+            attendancePoints,
+            bonusPoints,
+            total: dayTotal,
+          }
         }
 
-        // Compute achievement pct from weekly plan vs evening actuals
-        const weeklyPlan = state.weeklyPlans.find(p => p.userId === userId && p.weekId === wid)
+        const finalScore = totalDeduction + totalBonus
+
+        // Achievement pct: weekly plan targets vs summed evening actuals
         let achievementPct = 0
-        if (weeklyPlan) {
-          const planKpis: Record<string, number> = (weeklyPlan as any).kpis ?? {}
-          const actualKpis: Record<string, number> = {}
-          for (const date of dates) {
-            const ev = state.eveningActuals.find(e => e.userId === userId && e.date === date)
-            if (!ev) continue
-            const kpis: Record<string, number> = (ev as any).kpis ?? {}
-            for (const k of Object.keys(kpis)) {
-              actualKpis[k] = (actualKpis[k] ?? 0) + kpis[k]
-            }
-          }
-          const keys = Object.keys(planKpis).filter(k => planKpis[k] > 0)
-          if (keys.length > 0) {
-            const pcts = keys.map(k => Math.min(((actualKpis[k] ?? 0) / planKpis[k]) * 100, 100))
-            achievementPct = pcts.reduce((a, b) => a + b, 0) / pcts.length
-          }
+        const weeklyKpiTarget: KPITarget = weeklyPlan?.kpiTargets ?? {}
+        const targetEntries = Object.entries(weeklyKpiTarget).filter(([, v]) => typeof v === 'number' && v > 0) as [string, number][]
+        if (targetEntries.length > 0) {
+          const pcts = targetEntries.map(([k, v]) => Math.min(((weeklyKpiActual[k] ?? 0) / v) * 100, 100))
+          achievementPct = pcts.reduce((a, b) => a + b, 0) / pcts.length
         }
 
-        const grade = computeGrade(totalScore)
         const weekScore: WeekScore = {
-          id: uid(),
           userId,
           weekId: wid,
-          finalScore: totalScore,
-          grade,
+          dailyScores,
+          weeklyKpiActual: weeklyKpiActual as KPITarget,
+          weeklyKpiTarget,
           achievementPct,
-          dayScores,
+          totalDeduction,
+          bonusPoints: totalBonus,
+          finalScore,
+          grade: computeGrade(finalScore),
+          rank: 0,
         }
 
-        // Upsert into store
+        // Upsert, then recompute ranks for the whole week
         set(state => {
-          const existing = state.weekScores.find(s => s.userId === userId && s.weekId === wid)
-          if (existing) {
-            return {
-              weekScores: state.weekScores.map(s =>
-                s.userId === userId && s.weekId === wid ? { ...weekScore, id: existing.id } : s
-              ),
-            }
+          const others = state.weekScores.filter(s => !(s.userId === userId && s.weekId === wid))
+          const forWeek = [...others.filter(s => s.weekId === wid), weekScore]
+            .sort((a, b) => b.finalScore - a.finalScore)
+          const ranked = new Map(forWeek.map((s, i) => [s.userId, i + 1]))
+          return {
+            weekScores: [...others, weekScore].map(s =>
+              s.weekId === wid ? { ...s, rank: ranked.get(s.userId) ?? 0 } : s
+            ),
           }
-          return { weekScores: [...state.weekScores, weekScore] }
         })
 
-        return weekScore
+        return get().weekScores.find(s => s.userId === userId && s.weekId === wid) ?? weekScore
       },
 
       getAllWeekScores(weekId?: string): WeekScore[] {
@@ -451,18 +505,18 @@ const useERPStore = create<ERPState>()(
         const state = get()
         const t = today()
         const tasks = state.assignedTasks.filter(
-          task => task.assignedTo === userId && task.status !== 'completed' && task.status !== 'cancelled'
+          task => task.assignedTo === userId && task.status !== 'approved' && task.status !== 'rejected'
         ).length
 
         const followUpsCount = state.followUps.filter(
-          fu => fu.userId === userId && !fu.done && fu.dueDate <= t
+          fu => fu.userId === userId && (fu.status === 'pending' || fu.status === 'rescheduled') && fu.dueDate <= t
         ).length
 
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
         const staleLeads = state.leads.filter(lead => {
           if (lead.userId !== userId) return false
-          if (lead.status === 'closed_won' || lead.status === 'closed_lost') return false
+          if (lead.stage === 'won' || lead.stage === 'lost') return false
           return new Date(lead.updatedAt) < sevenDaysAgo
         }).length
 
@@ -473,13 +527,14 @@ const useERPStore = create<ERPState>()(
         const state = get()
         const d = new Date()
         const days: string[] = []
-        for (let i = 1; i <= 2; i++) {
-          const prev = new Date(d)
-          prev.setDate(d.getDate() - i)
-          days.push(prev.toISOString().split('T')[0])
+        // Last 2 working days (skip Sundays)
+        const prev = new Date(d)
+        while (days.length < 2) {
+          prev.setDate(prev.getDate() - 1)
+          if (prev.getDay() !== 0) days.push(fmtLocalDate(prev))
         }
         return state.users.filter(user => {
-          if (user.role !== 'sales_exec') return false
+          if (user.role !== 'sales_exec' || user.isActive === false) return false
           const hasAny = days.some(date =>
             state.morningPlans.some(p => p.userId === user.id && p.date === date)
           )
@@ -491,7 +546,7 @@ const useERPStore = create<ERPState>()(
         const state = get()
         const manager = state.users.find(u => u.id === managerId)
         if (!manager) return []
-        return state.users.filter(u => u.team === manager.team && u.role === 'sales_exec')
+        return state.users.filter(u => u.team === manager.team && u.role === 'sales_exec' && u.isActive !== false)
       },
 
       getWeekId(): string {
@@ -503,7 +558,7 @@ const useERPStore = create<ERPState>()(
       },
     }),
     {
-      name: 'rocket-launch-erp-v1',
+      name: 'rocket-launch-erp-v2',
     }
   )
 )

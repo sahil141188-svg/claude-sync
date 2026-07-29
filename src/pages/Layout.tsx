@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   BarChart2,
@@ -52,8 +52,7 @@ export default function Layout() {
   const [sidebarHovered, setSidebarHovered] = useState(false);
 
   if (!currentUser) {
-    navigate('/login');
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   const navItems: NavItem[] = [
@@ -63,11 +62,10 @@ export default function Layout() {
     { label: 'Leads', path: '/leads', icon: <Target size={20} /> },
     { label: 'Playbook', path: '/playbook', icon: <BookOpen size={20} /> },
     { label: 'Team', path: '/manager', icon: <Users size={20} />, minRole: 'manager' },
-    { label: 'Tasks', path: '/attendance', icon: <CheckSquare size={20} />, minRole: 'manager' },
+    { label: 'Attendance', path: '/attendance', icon: <Calendar size={20} />, minRole: 'manager' },
+    { label: 'Warnings', path: '/warnings', icon: <AlertTriangle size={20} />, minRole: 'manager' },
+    { label: 'Reports', path: '/reports', icon: <FileText size={20} />, minRole: 'manager' },
     { label: 'Admin', path: '/dashboard', icon: <Shield size={20} />, minRole: 'admin' },
-    { label: 'Warnings', path: '/warnings', icon: <AlertTriangle size={20} />, minRole: 'admin' },
-    { label: 'Reports', path: '/reports', icon: <FileText size={20} />, minRole: 'admin' },
-    { label: 'Attendance', path: '/attendance', icon: <Calendar size={20} />, minRole: 'admin' },
   ];
 
   const visibleNavItems = navItems.filter(

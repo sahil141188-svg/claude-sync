@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { fmtLocalDate, todayLocal } from '../utils/dates'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Bell,
@@ -19,7 +20,7 @@ import {
 import useERPStore from '../store/erpStore'
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayLocal()
 }
 
 function formatDate(d: Date): string {
@@ -93,11 +94,12 @@ export default function AdminDashboard() {
 
   // Plan compliance: count unique (userId, date) pairs with morning plan this week
   const now = new Date()
+  const mondayOffset = (now.getDay() + 6) % 7 // 0=Mon … 6=Sun
   const weekDays: string[] = []
   for (let i = 0; i < 6; i++) {
     const d = new Date(now)
-    d.setDate(now.getDate() - now.getDay() + 1 + i)
-    weekDays.push(d.toISOString().split('T')[0])
+    d.setDate(now.getDate() - mondayOffset + i)
+    weekDays.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
   }
   const possibleDays = totalMembers * weekDays.length
   const daysWithPlan = morningPlans.filter(p => weekDays.includes(p.date)).length
@@ -118,7 +120,7 @@ export default function AdminDashboard() {
     const user = users.find(u => u.id === p.userId)
     if (user) {
       activities.push({
-        time: p.date + 'T09:00:00',
+        time: p.submittedAt || p.date + 'T09:00:00',
         label: `${user.name} submitted morning plan`,
         key: 'morning-' + p.id,
       })
@@ -129,7 +131,7 @@ export default function AdminDashboard() {
     const user = users.find(u => u.id === e.userId)
     if (user) {
       activities.push({
-        time: e.date + 'T18:00:00',
+        time: e.submittedAt || e.date + 'T18:00:00',
         label: `${user.name} submitted evening actuals`,
         key: 'evening-' + e.id,
       })
@@ -141,7 +143,7 @@ export default function AdminDashboard() {
     if (user) {
       activities.push({
         time: l.createdAt,
-        label: `${user.name} added a lead: ${l.companyName}`,
+        label: `${user.name} added a lead: ${l.company}`,
         key: 'lead-' + l.id,
       })
     }
@@ -151,7 +153,7 @@ export default function AdminDashboard() {
   const recentActivities = activities.slice(0, 10)
 
   // Notifications count (pending tasks + danger zone)
-  const pendingTasksCount = assignedTasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length
+  const pendingTasksCount = assignedTasks.filter(t => t.status !== 'approved' && t.status !== 'rejected').length
   const notifCount = dangerZone.length + pendingTasksCount
 
   const handleLogout = () => {
@@ -369,7 +371,7 @@ export default function AdminDashboard() {
                   const hasMorning = morningPlans.some(p => p.userId === exec.id && p.date === today)
                   const hasEvening = eveningActuals.some(e => e.userId === exec.id && e.date === today)
                   return (
-                    <tr key={exec.id} style={{ background: grade !== '—' ? rowBg(grade) : '#1e293b', borderTop: '1px solid #e2e8f0', color: '#1e293b' }}>
+                    <tr key={exec.id} style={{ background: grade !== '—' ? rowBg(grade) : '#f1f5f9', borderTop: '1px solid #e2e8f0', color: '#1e293b' }}>
                       <td style={{ ...tdStyle, color: '#64748b', fontWeight: 700 }}>{idx + 1}</td>
                       <td style={{ ...tdStyle, fontWeight: 600, color: '#0f172a' }}>{exec.name}</td>
                       <td style={tdStyle}>
@@ -484,11 +486,11 @@ export default function AdminDashboard() {
             Quick Actions
           </h2>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <QuickBtn icon={<UserPlus size={16} />} label="Add Member" onClick={() => navigate('/admin/users')} color="#3b82f6" />
-            <QuickBtn icon={<Megaphone size={16} />} label="Broadcast" onClick={() => navigate('/admin/broadcast')} color="#8b5cf6" />
-            <QuickBtn icon={<Calendar size={16} />} label="Attendance" onClick={() => navigate('/admin/attendance')} color="#06b6d4" />
-            <QuickBtn icon={<FileText size={16} />} label="Reports" onClick={() => navigate('/admin/reports')} color="#10b981" />
-            <QuickBtn icon={<AlertTriangle size={16} />} label="Warnings" onClick={() => navigate('/admin/warnings')} color="#f97316" />
+            <QuickBtn icon={<UserPlus size={16} />} label="Team" onClick={() => navigate('/manager')} color="#3b82f6" />
+            <QuickBtn icon={<Megaphone size={16} />} label="Leaderboard" onClick={() => navigate('/leaderboard')} color="#8b5cf6" />
+            <QuickBtn icon={<Calendar size={16} />} label="Attendance" onClick={() => navigate('/attendance')} color="#06b6d4" />
+            <QuickBtn icon={<FileText size={16} />} label="Reports" onClick={() => navigate('/reports')} color="#10b981" />
+            <QuickBtn icon={<AlertTriangle size={16} />} label="Warnings" onClick={() => navigate('/warnings')} color="#f97316" />
           </div>
         </div>
 

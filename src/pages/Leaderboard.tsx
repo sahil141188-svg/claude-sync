@@ -103,6 +103,7 @@ export default function Leaderboard() {
   const computeWeekScore = useERPStore(s => s.computeWeekScore)
 
   const weekId = getWeekId()
+  const prevWeekId = getWeekId(new Date(Date.now() - 7 * 86400000))
   const weekNumber = parseInt(weekId.split('-W')[1], 10)
   const weekDates = getWeekDates()
 
@@ -124,14 +125,18 @@ export default function Leaderboard() {
     const lb = getLeaderboard(weekId)
     // Only sales execs
     return lb.filter(e => e.user.role === 'sales_exec' && e.user.isActive)
-  }, [getLeaderboard, weekId])
+    // weekScoresAll is the real data dependency — getLeaderboard reads it
+  }, [getLeaderboard, weekId, weekScoresAll])
 
   const filtered = useMemo(() => {
     if (teamFilter === 'All') return leaderboard
     return leaderboard.filter(e => e.user.team === teamFilter)
   }, [leaderboard, teamFilter])
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
 
   const dailyData = useMemo(() => {
     const salesUsers = users.filter(u => u.role === 'sales_exec' && u.isActive)
@@ -303,9 +308,13 @@ export default function Leaderboard() {
                   const isMe = entry.userId === currentUser?.id
                   const deficit = entry.finalScore < 0 ? entry.finalScore : 0
                   const pct = Math.min(100, Math.max(0, entry.achievementPct))
-                  // Simulate change: random up/down/same based on userId hash
-                  const hash = entry.userId.charCodeAt(0) % 3
-                  const change = hash === 0 ? 'up' : hash === 1 ? 'down' : 'same'
+                  // Rank movement vs previous week's stored rank
+                  const prevScore = weekScoresAll.find(
+                    s => s.userId === entry.userId && s.weekId === prevWeekId
+                  )
+                  const change = !prevScore || prevScore.rank === 0
+                    ? 'same'
+                    : rank < prevScore.rank ? 'up' : rank > prevScore.rank ? 'down' : 'same'
 
                   return (
                     <div
