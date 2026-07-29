@@ -7,7 +7,7 @@ import type { AppSettings } from '@/lib/types';
 export async function updateSettings(patch: Partial<Omit<AppSettings, 'id'>>) {
   const supabase = await createClient();
   const { error } = await supabase
-    .from('app_settings')
+    .from('hc_app_settings')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', 1);
   if (error) throw new Error(error.message);

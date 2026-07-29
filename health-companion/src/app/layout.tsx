@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   try {
     const supabase = await createClient();
     const { data } = await supabase
-      .from('app_settings')
+      .from('hc_app_settings')
       .select('dark_mode, font_scale')
       .eq('id', 1)
       .single();

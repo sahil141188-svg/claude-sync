@@ -12,7 +12,7 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const [{ data: settings }, { data: profile }] = await Promise.all([
-    supabase.from('app_settings').select('*').eq('id', 1).single<AppSettings>(),
+    supabase.from('hc_app_settings').select('*').eq('id', 1).single<AppSettings>(),
     supabase.from('profiles').select('*').eq('id', user!.id).single<Profile>(),
   ]);
 

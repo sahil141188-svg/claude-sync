@@ -19,7 +19,7 @@ export async function sendWhatsApp(
   const admin = createAdminClient();
 
   const { data: settings } = await admin
-    .from('app_settings')
+    .from('hc_app_settings')
     .select('whatsapp_enabled')
     .eq('id', 1)
     .single();

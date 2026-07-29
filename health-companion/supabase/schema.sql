@@ -1,23 +1,30 @@
 -- ============================================================================
--- Health Care Companion — Supabase schema
--- Run this in the Supabase SQL editor (or `supabase db push`).
+-- Health Care Companion — Supabase schema (DEPLOYED VERSION)
+-- Applied to the shared `robotek-finos` project as migration
+-- `health_companion_init`. Adapted to coexist with the Robotek FinOS ERP:
+--   * app_settings  -> hc_app_settings  (ERP already has app_settings)
+--   * user_role     -> hc_user_role     (ERP already has user_role)
+--   * no auth.users trigger (the ERP owns handle_new_user/on_auth_user_created);
+--     the two health profiles rows are inserted manually — see README
+--   * all health tables readable ONLY by users present in public.profiles,
+--     so ERP users authenticated against the same project get no access
 -- ============================================================================
 
 create extension if not exists "uuid-ossp";
 
 -- ── Enums ───────────────────────────────────────────────────────────────────
-create type user_role as enum ('caregiver', 'patient');
+create type hc_user_role as enum ('caregiver', 'patient');
 create type medicine_slot as enum ('morning', 'afternoon', 'night', 'custom');
 create type food_relation as enum ('before_food', 'after_food', 'any');
 create type sugar_type as enum ('fasting', 'pp', 'random');
 create type exercise_type as enum ('walking', 'yoga', 'cycling', 'meditation', 'other');
 create type report_status as enum ('improving', 'needs_attention', 'critical');
 
--- ── Profiles (linked to auth.users) ─────────────────────────────────────────
+-- ── Profiles (linked to auth.users; only Papa + caregiver get a row) ────────
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null default '',
-  role user_role not null default 'caregiver',
+  role hc_user_role not null default 'caregiver',
   phone text,
   created_at timestamptz not null default now()
 );
@@ -146,7 +153,7 @@ create table public.notifications (
   body text not null,
   category text not null default 'general',
   read boolean not null default false,
-  target_role user_role,
+  target_role hc_user_role,
   created_at timestamptz not null default now()
 );
 
@@ -191,7 +198,7 @@ create table public.emergency_contacts (
   created_at timestamptz not null default now()
 );
 
-create table public.app_settings (
+create table public.hc_app_settings (
   id int primary key default 1 check (id = 1),
   dark_mode boolean not null default false,
   notifications_enabled boolean not null default true,
@@ -201,7 +208,7 @@ create table public.app_settings (
   water_goal_glasses int not null default 8,
   updated_at timestamptz not null default now()
 );
-insert into public.app_settings (id) values (1) on conflict do nothing;
+insert into public.hc_app_settings (id) values (1) on conflict do nothing;
 
 -- ── Doctor visits ───────────────────────────────────────────────────────────
 create table public.doctor_visits (
@@ -222,10 +229,6 @@ create index idx_weight_measured on public.weight_readings (measured_at desc);
 create index idx_exercise_date on public.exercise_logs (log_date desc);
 
 -- ── Row Level Security ──────────────────────────────────────────────────────
--- This is a private family app: every authenticated user (caregiver + patient)
--- can read everything. Writes are restricted by role — the patient may only
--- update medicine_logs (mark taken) and water_logs.
-
 alter table public.profiles enable row level security;
 alter table public.medicines enable row level security;
 alter table public.medicine_logs enable row level security;
@@ -241,8 +244,14 @@ alter table public.whatsapp_logs enable row level security;
 alter table public.health_tips enable row level security;
 alter table public.ai_reports enable row level security;
 alter table public.emergency_contacts enable row level security;
-alter table public.app_settings enable row level security;
+alter table public.hc_app_settings enable row level security;
 alter table public.doctor_visits enable row level security;
+
+-- Only users with a health profile (Papa + caregiver) may touch health data.
+create or replace function public.hc_is_health_user()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid());
+$$;
 
 create or replace function public.is_caregiver()
 returns boolean language sql stable security definer set search_path = public as $$
@@ -252,7 +261,7 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 
--- Read for all authenticated users
+-- Read: health users only
 do $$
 declare t text;
 begin
@@ -260,16 +269,16 @@ begin
     'profiles','medicines','medicine_logs','sugar_readings','bp_readings',
     'weight_readings','water_logs','exercise_logs','prescription_files',
     'extracted_medicines','notifications','whatsapp_logs','health_tips',
-    'ai_reports','emergency_contacts','app_settings','doctor_visits'
+    'ai_reports','emergency_contacts','hc_app_settings','doctor_visits'
   ] loop
     execute format(
-      'create policy "read_all_%s" on public.%I for select to authenticated using (true);',
+      'create policy "hc_read_%s" on public.%I for select to authenticated using (public.hc_is_health_user());',
       t, t
     );
   end loop;
 end $$;
 
--- Caregiver: full write access everywhere
+-- Caregiver: full write access
 do $$
 declare t text;
 begin
@@ -277,27 +286,24 @@ begin
     'medicines','medicine_logs','sugar_readings','bp_readings',
     'weight_readings','water_logs','exercise_logs','prescription_files',
     'extracted_medicines','notifications','health_tips','ai_reports',
-    'emergency_contacts','app_settings','doctor_visits'
+    'emergency_contacts','hc_app_settings','doctor_visits'
   ] loop
     execute format(
-      'create policy "caregiver_write_%s" on public.%I for all to authenticated using (public.is_caregiver()) with check (public.is_caregiver());',
+      'create policy "hc_caregiver_write_%s" on public.%I for all to authenticated using (public.is_caregiver()) with check (public.is_caregiver());',
       t, t
     );
   end loop;
 end $$;
 
--- Patient: may mark medicines taken and log water
-create policy "patient_update_medicine_logs" on public.medicine_logs
-  for update to authenticated using (true) with check (true);
-create policy "patient_write_water" on public.water_logs
-  for all to authenticated using (true) with check (true);
-create policy "patient_mark_notifications_read" on public.notifications
-  for update to authenticated using (true) with check (true);
+-- Patient: may mark medicines taken, log water, mark notifications read
+create policy "hc_patient_update_medicine_logs" on public.medicine_logs
+  for update to authenticated using (public.hc_is_health_user()) with check (public.hc_is_health_user());
+create policy "hc_patient_write_water" on public.water_logs
+  for all to authenticated using (public.hc_is_health_user()) with check (public.hc_is_health_user());
+create policy "hc_patient_mark_notifications_read" on public.notifications
+  for update to authenticated using (public.hc_is_health_user()) with check (public.hc_is_health_user());
 
--- Users manage their own profile row
-create policy "own_profile_upsert" on public.profiles
-  for insert to authenticated with check (id = auth.uid());
-create policy "own_profile_update" on public.profiles
+create policy "hc_own_profile_update" on public.profiles
   for update to authenticated using (id = auth.uid());
 
 -- ── Storage bucket for prescriptions & reading photos ───────────────────────
@@ -305,29 +311,15 @@ insert into storage.buckets (id, name, public)
 values ('prescriptions', 'prescriptions', false)
 on conflict do nothing;
 
-create policy "authenticated_read_prescriptions" on storage.objects
-  for select to authenticated using (bucket_id = 'prescriptions');
-create policy "authenticated_upload_prescriptions" on storage.objects
-  for insert to authenticated with check (bucket_id = 'prescriptions');
-create policy "caregiver_delete_prescriptions" on storage.objects
+create policy "hc_read_prescription_files" on storage.objects
+  for select to authenticated using (bucket_id = 'prescriptions' and public.hc_is_health_user());
+create policy "hc_upload_prescription_files" on storage.objects
+  for insert to authenticated with check (bucket_id = 'prescriptions' and public.hc_is_health_user());
+create policy "hc_delete_prescription_files" on storage.objects
   for delete to authenticated using (bucket_id = 'prescriptions' and public.is_caregiver());
 
--- ── Auto-create profile on signup ───────────────────────────────────────────
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, full_name, role)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'caregiver')
-  )
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- ── Manual step after creating the two auth users in the dashboard ──────────
+-- (replace the UUIDs/emails; run once)
+-- insert into public.profiles (id, full_name, role, phone) values
+--   ('<caregiver-auth-user-uuid>', 'Sahil', 'caregiver', '91XXXXXXXXXX'),
+--   ('<papa-auth-user-uuid>',     'Papa',  'patient',   '91XXXXXXXXXX');

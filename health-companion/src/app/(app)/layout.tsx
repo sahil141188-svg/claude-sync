@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single<Profile>();
 
   const { data: settings } = await supabase
-    .from('app_settings')
+    .from('hc_app_settings')
     .select('language')
     .eq('id', 1)
     .single();
