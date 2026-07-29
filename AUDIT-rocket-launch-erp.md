@@ -1,5 +1,7 @@
 # Audit — Rocket Launch ERP (PR #1)
 
+> **UPDATE 2026-07-29:** All 7 fatal defects and the High-severity correctness issues below were fixed in commit `3b1b471` on the PR #1 branch. `tsc` is clean, `npm run build` succeeds, and a 20-check Playwright end-to-end run (login, role guards, weekly→morning→evening loop, scoring, scorecard, leaderboard, admin dashboard) passes with zero console errors. Remaining known limitations: the manager approval queue and warning/PIP workflows still keep state locally (store actions now exist but pages aren't wired), the evening task-status default is still "done", and the architecture remains client-only localStorage — a real backend is required for actual multi-user use. The findings below are preserved as originally written.
+
 **Branch audited:** `claude/sales-erp-app-design-uts09f` @ `7ae95ab`
 **Audit date:** 2026-07-29
 **Method:** full TypeScript compile, live run in headless Chromium (Vite dev server + Playwright), line-by-line review of the Zustand store and all 16 pages, and a reachability check of the deployment domain `os.ansbharat.com`.
