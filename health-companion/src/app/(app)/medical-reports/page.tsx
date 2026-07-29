@@ -1,23 +1,14 @@
 import { FolderOpen } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ReportUploader } from './uploader';
 import { ReportRow } from './report-row';
-import type { MedicalReport, Profile } from '@/lib/types';
+import type { MedicalReport } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MedicalReportsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single<Pick<Profile, 'role'>>();
-  const isCaregiver = profile?.role === 'caregiver';
+  const { supabase, isCaregiver } = await requireProfile();
 
   const { data } = await supabase
     .from('medical_reports')

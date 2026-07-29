@@ -1,27 +1,17 @@
 import { CalendarClock, Stethoscope } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { formatTime12, todayStr } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppointmentForm } from './appointment-form';
 import { DeleteAppointmentButton } from './delete-button';
-import type { DoctorVisit, Profile } from '@/lib/types';
+import type { DoctorVisit } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AppointmentsPage() {
-  const supabase = await createClient();
+  const { supabase, isCaregiver } = await requireProfile();
   const today = todayStr();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single<Pick<Profile, 'role'>>();
-  const isCaregiver = profile?.role === 'caregiver';
 
   const { data } = await supabase
     .from('doctor_visits')

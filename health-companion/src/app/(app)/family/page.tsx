@@ -1,24 +1,15 @@
 import { Users } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FamilyForm } from './family-form';
 import { DeleteFamilyButton } from './delete-button';
-import type { FamilyMember, Profile } from '@/lib/types';
+import type { FamilyMember } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FamilyPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single<Pick<Profile, 'role'>>();
-  const isCaregiver = profile?.role === 'caregiver';
+  const { supabase, isCaregiver } = await requireProfile();
 
   const { data } = await supabase
     .from('family_members')

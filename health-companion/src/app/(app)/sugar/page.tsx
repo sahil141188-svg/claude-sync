@@ -1,12 +1,12 @@
 import { Droplet } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { detectTrend, sugarSuggestion, trendLabelHi } from '@/lib/trend';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendChart } from '@/components/charts/trend-chart';
 import { RangeTabs, rangeDays } from '@/components/range-tabs';
 import { ReadingForm } from './reading-form';
-import type { SugarReading, Profile } from '@/lib/types';
+import type { SugarReading } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,18 +22,14 @@ export default async function SugarPage({
   searchParams: Promise<{ range?: string }>;
 }) {
   const { range = 'weekly' } = await searchParams;
-  const supabase = await createClient();
+  const { supabase, isCaregiver } = await requireProfile();
 
   const since = new Date(Date.now() - rangeDays(range) * 86_400_000).toISOString();
-  const [{ data: readings }, userRes] = await Promise.all([
-    supabase.from('sugar_readings').select('*').gte('measured_at', since).order('measured_at'),
-    supabase.auth.getUser(),
-  ]);
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userRes.data.user!.id)
-    .single<Pick<Profile, 'role'>>();
+  const { data: readings } = await supabase
+    .from('sugar_readings')
+    .select('*')
+    .gte('measured_at', since)
+    .order('measured_at');
 
   const rows = (readings ?? []) as SugarReading[];
   const chartData = rows.map((r) => ({
@@ -49,7 +45,7 @@ export default async function SugarPage({
         <Droplet className="h-8 w-8 text-rose-500" /> Sugar
       </h1>
 
-      {profile?.role === 'caregiver' && <ReadingForm />}
+      {isCaregiver && <ReadingForm />}
 
       <Card>
         <CardHeader>

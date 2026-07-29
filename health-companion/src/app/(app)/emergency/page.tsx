@@ -1,8 +1,8 @@
 import { Hospital, Phone, Siren, Stethoscope, UserRound } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { AddContactForm } from './add-contact-form';
-import type { EmergencyContact, Profile } from '@/lib/types';
+import type { EmergencyContact } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +14,7 @@ const KIND_ICON: Record<string, React.ReactNode> = {
 };
 
 export default async function EmergencyPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single<Pick<Profile, 'role'>>();
+  const { supabase, isCaregiver } = await requireProfile();
 
   const { data: contacts } = await supabase
     .from('emergency_contacts')
@@ -68,7 +60,7 @@ export default async function EmergencyPage() {
         </a>
       ))}
 
-      {profile?.role === 'caregiver' && <AddContactForm />}
+      {isCaregiver && <AddContactForm />}
     </div>
   );
 }

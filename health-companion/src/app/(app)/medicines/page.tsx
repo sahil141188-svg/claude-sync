@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AlertTriangle, Pill, Plus, Utensils } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { ensureTodayLogs } from '@/lib/medicine-schedule';
 import { formatTime12, slotLabel, todayStr, SLOT_TIMES } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -8,24 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MedicineTakenButton } from '@/components/medicine-taken-button';
 import { ArchiveMedicineButton } from './archive-button';
-import type { Medicine, MedicineLog, Profile } from '@/lib/types';
+import type { Medicine, MedicineLog } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MedicinesPage() {
   await ensureTodayLogs();
-  const supabase = await createClient();
+  const { supabase, isCaregiver } = await requireProfile();
   const today = todayStr();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user!.id)
-    .single<Profile>();
-  const isCaregiver = profile?.role === 'caregiver';
 
   const [{ data: medicines }, { data: logs }] = await Promise.all([
     supabase.from('medicines').select('*').eq('archived', false).order('created_at'),

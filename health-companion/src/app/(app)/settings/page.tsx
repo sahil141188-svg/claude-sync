@@ -1,20 +1,18 @@
 import { Settings as SettingsIcon } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireProfile } from '@/lib/auth';
 import { SettingsForm } from './settings-form';
 import { SignOutButton } from './sign-out-button';
-import type { AppSettings, Profile } from '@/lib/types';
+import type { AppSettings } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const [{ data: settings }, { data: profile }] = await Promise.all([
-    supabase.from('hc_app_settings').select('*').eq('id', 1).single<AppSettings>(),
-    supabase.from('profiles').select('*').eq('id', user!.id).single<Profile>(),
-  ]);
+  const { supabase, profile } = await requireProfile();
+  const { data: settings } = await supabase
+    .from('hc_app_settings')
+    .select('*')
+    .eq('id', 1)
+    .single<AppSettings>();
 
   return (
     <div className="space-y-4 animate-fade-in-up">
