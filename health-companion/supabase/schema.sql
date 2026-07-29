@@ -323,3 +323,60 @@ create policy "hc_delete_prescription_files" on storage.objects
 -- insert into public.profiles (id, full_name, role, phone) values
 --   ('<caregiver-auth-user-uuid>', 'Sahil', 'caregiver', '91XXXXXXXXXX'),
 --   ('<papa-auth-user-uuid>',     'Papa',  'patient',   '91XXXXXXXXXX');
+
+-- ============================================================================
+-- Migration: health_family_role_enum + health_appointments_reports_family
+-- (already applied to the live project)
+-- ============================================================================
+
+-- Family role: can view everything, cannot edit medical records
+alter type public.hc_user_role add value if not exists 'family';
+
+-- Appointments: doctor_visits gains a time column
+alter table public.doctor_visits add column if not exists visit_time time;
+
+-- Family members (WhatsApp alert recipients; optional linked login)
+create table public.family_members (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  phone text not null,
+  email text,
+  auth_user_id uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- Uploaded medical reports (lab reports, scans, discharge summaries…)
+create table public.medical_reports (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  file_path text not null,
+  file_type text not null,
+  report_date date not null default current_date,
+  notes text,
+  uploaded_by uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+
+alter table public.family_members enable row level security;
+alter table public.medical_reports enable row level security;
+
+create policy "hc_read_family_members" on public.family_members
+  for select to authenticated using (public.hc_is_health_user());
+create policy "hc_caregiver_write_family_members" on public.family_members
+  for all to authenticated using (public.is_caregiver()) with check (public.is_caregiver());
+
+create policy "hc_read_medical_reports" on public.medical_reports
+  for select to authenticated using (public.hc_is_health_user());
+create policy "hc_caregiver_write_medical_reports" on public.medical_reports
+  for all to authenticated using (public.is_caregiver()) with check (public.is_caregiver());
+
+insert into storage.buckets (id, name, public)
+values ('medical-reports', 'medical-reports', false)
+on conflict do nothing;
+
+create policy "hc_read_medical_report_files" on storage.objects
+  for select to authenticated using (bucket_id = 'medical-reports' and public.hc_is_health_user());
+create policy "hc_upload_medical_report_files" on storage.objects
+  for insert to authenticated with check (bucket_id = 'medical-reports' and public.is_caregiver());
+create policy "hc_delete_medical_report_files" on storage.objects
+  for delete to authenticated using (bucket_id = 'medical-reports' and public.is_caregiver());

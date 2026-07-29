@@ -22,7 +22,8 @@ export default async function SettingsPage() {
         <SettingsIcon className="h-8 w-8 text-muted-foreground" /> Settings
       </h1>
       <p className="text-elder-base text-muted-foreground">
-        {profile?.full_name} ({profile?.role === 'caregiver' ? 'Caregiver' : 'Patient'})
+        {profile?.full_name} (
+        {profile?.role === 'caregiver' ? 'Caregiver' : profile?.role === 'family' ? 'Family' : 'Patient'})
       </p>
       <SettingsForm
         settings={

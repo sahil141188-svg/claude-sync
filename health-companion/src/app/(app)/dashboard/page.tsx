@@ -9,6 +9,7 @@ import {
   Pill,
   Scale,
   Siren,
+  Stethoscope,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { ensureTodayLogs } from '@/lib/medicine-schedule';
@@ -21,7 +22,15 @@ import { Badge } from '@/components/ui/badge';
 import { LiveClock } from '@/components/live-clock';
 import { HealthScoreRing } from '@/components/health-score-ring';
 import { MedicineTakenButton } from '@/components/medicine-taken-button';
-import type { BpReading, MedicineLog, SugarReading, WaterLog, WeightReading, ExerciseLog } from '@/lib/types';
+import type {
+  BpReading,
+  DoctorVisit,
+  ExerciseLog,
+  MedicineLog,
+  SugarReading,
+  WaterLog,
+  WeightReading,
+} from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +40,7 @@ export default async function DashboardPage() {
   const today = todayStr();
   const dayStart = `${today}T00:00:00`;
 
-  const [logsRes, sugarRes, bpRes, weightRes, waterRes, exerciseRes] = await Promise.all([
+  const [logsRes, sugarRes, bpRes, weightRes, waterRes, exerciseRes, visitRes] = await Promise.all([
     supabase
       .from('medicine_logs')
       .select('*, medicines(*)')
@@ -42,6 +51,13 @@ export default async function DashboardPage() {
     supabase.from('weight_readings').select('*').order('measured_at', { ascending: false }).limit(1),
     supabase.from('water_logs').select('*').eq('log_date', today).maybeSingle(),
     supabase.from('exercise_logs').select('*').eq('log_date', today),
+    supabase
+      .from('doctor_visits')
+      .select('*')
+      .gte('visit_date', today)
+      .order('visit_date')
+      .order('visit_time')
+      .limit(1),
   ]);
 
   const logs = (logsRes.data ?? []) as MedicineLog[];
@@ -50,6 +66,7 @@ export default async function DashboardPage() {
   const weight = (weightRes.data ?? []) as WeightReading[];
   const water = waterRes.data as WaterLog | null;
   const exercise = (exerciseRes.data ?? []) as ExerciseLog[];
+  const nextVisit = (visitRes.data?.[0] ?? null) as DoctorVisit | null;
 
   const taken = logs.filter((l) => l.taken).length;
   const medPct = logs.length ? Math.round((taken / logs.length) * 100) : 0;
@@ -179,6 +196,31 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Next doctor appointment */}
+      {nextVisit && (
+        <Link href="/appointments" className="block">
+          <Card className="border-primary/40 bg-primary/5 transition-transform active:scale-[0.98]">
+            <CardContent className="flex items-center gap-3 p-5">
+              <Stethoscope className="h-8 w-8 shrink-0 text-primary" />
+              <div className="flex-1">
+                <p className="font-bold text-primary">
+                  {nextVisit.visit_date === today ? 'आज appointment है!' : 'अगली appointment'}
+                </p>
+                <p className="text-elder-base">
+                  Dr. {nextVisit.doctor_name} ·{' '}
+                  {new Date(nextVisit.visit_date + 'T00:00:00').toLocaleDateString('hi-IN', {
+                    day: 'numeric',
+                    month: 'long',
+                  })}
+                  {nextVisit.visit_time &&
+                    ` · ${formatTime12(nextVisit.visit_time.slice(0, 5))}`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Tip of the day */}
       <Card className="border-secondary/40 bg-secondary/5">

@@ -1,4 +1,4 @@
-export type UserRole = 'caregiver' | 'patient';
+export type UserRole = 'caregiver' | 'patient' | 'family';
 export type MedicineSlot = 'morning' | 'afternoon' | 'night' | 'custom';
 export type FoodRelation = 'before_food' | 'after_food' | 'any';
 export type SugarType = 'fasting' | 'pp' | 'random';
@@ -140,6 +140,26 @@ export interface DoctorVisit {
   id: string;
   doctor_name: string;
   visit_date: string;
+  visit_time: string | null;
   notes: string | null;
   next_visit_date: string | null;
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  auth_user_id: string | null;
+  created_at: string;
+}
+
+export interface MedicalReport {
+  id: string;
+  title: string;
+  file_path: string;
+  file_type: string;
+  report_date: string;
+  notes: string | null;
+  created_at: string;
 }
