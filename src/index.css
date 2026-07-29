@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-gray-950 text-white font-sans antialiased;
+    background: #0a0a0f;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-gray-900; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-600 rounded-full; }
+}
+
+@layer components {
+  .card { @apply bg-gray-900 border border-gray-800 rounded-xl p-4; }
+  .card-hover { @apply card hover:border-orange-500/50 transition-colors cursor-pointer; }
+  .btn-primary { @apply bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors; }
+  .btn-secondary { @apply bg-gray-800 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition-colors; }
+  .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors; }
+  .input { @apply bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 w-full; }
+  .label { @apply text-gray-400 text-sm font-medium mb-1 block; }
+  .grade-s { @apply bg-yellow-400 text-black; }
+  .grade-a { @apply bg-green-500 text-white; }
+  .grade-b { @apply bg-blue-500 text-white; }
+  .grade-c { @apply bg-orange-500 text-white; }
+  .grade-d { @apply bg-red-500 text-white; }
+  .grade-f { @apply bg-red-900 text-white; }
+}
