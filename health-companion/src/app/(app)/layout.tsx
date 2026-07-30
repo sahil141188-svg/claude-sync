@@ -15,13 +15,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single<Profile>();
+    .maybeSingle<Profile>();
 
   const { data: settings } = await supabase
     .from('hc_app_settings')
     .select('language')
     .eq('id', 1)
-    .single();
+    .maybeSingle();
 
   const lang = (settings?.language ?? 'hi') as 'hi' | 'en';
 

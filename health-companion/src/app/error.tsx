@@ -4,7 +4,13 @@ import { RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /** Friendly full-page error screen instead of Next.js's raw "Application error". */
-export default function ErrorPage({ reset }: { error: Error; reset: () => void }) {
+export default function ErrorPage({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-background p-6 text-center">
       <span className="text-6xl">🙏</span>
@@ -20,6 +26,9 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
           <Home className="h-6 w-6" /> Home पर जाएँ
         </Button>
       </div>
+      {error?.digest && (
+        <p className="text-xs text-muted-foreground">Error code: {error.digest}</p>
+      )}
     </main>
   );
 }
