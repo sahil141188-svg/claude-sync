@@ -1,10 +1,9 @@
 import { Users } from 'lucide-react';
 import { requireProfile } from '@/lib/auth';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FamilyForm } from './family-form';
-import { DeleteFamilyButton } from './delete-button';
-import type { FamilyMember } from '@/lib/types';
+import { MemberRow } from './member-row';
+import type { FamilyMember, UserRole } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +15,13 @@ export default async function FamilyPage() {
     .select('*')
     .order('created_at')
     .returns<FamilyMember[]>();
+
+  const authIds = (data ?? []).map((m) => m.auth_user_id).filter(Boolean) as string[];
+  const roleById = new Map<string, UserRole>();
+  if (authIds.length > 0) {
+    const { data: profs } = await supabase.from('profiles').select('id, role').in('id', authIds);
+    for (const p of profs ?? []) roleById.set(p.id, p.role as UserRole);
+  }
 
   return (
     <div className="space-y-4 animate-fade-in-up">
@@ -40,24 +46,12 @@ export default async function FamilyPage() {
           ) : (
             <ul className="space-y-3">
               {(data ?? []).map((m) => (
-                <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border p-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary/15 text-xl font-bold text-secondary">
-                    {m.name.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-elder-base font-bold">{m.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      +{m.phone}
-                      {m.email && ` · ${m.email}`}
-                    </p>
-                  </div>
-                  {m.auth_user_id ? (
-                    <Badge variant="success">Login ✓</Badge>
-                  ) : (
-                    <Badge variant="muted">सिर्फ़ alerts</Badge>
-                  )}
-                  {isCaregiver && <DeleteFamilyButton id={m.id} name={m.name} />}
-                </li>
+                <MemberRow
+                  key={m.id}
+                  member={m}
+                  role={m.auth_user_id ? (roleById.get(m.auth_user_id) ?? 'family') : null}
+                  canEdit={isCaregiver}
+                />
               ))}
             </ul>
           )}

@@ -7,9 +7,23 @@ interface SendResult {
   response: unknown;
 }
 
+function maytapiConfig() {
+  const productId = process.env.MAYTAPI_PRODUCT_ID;
+  const phoneId = process.env.MAYTAPI_PHONE_ID;
+  const key = process.env.MAYTAPI_KEY;
+  return productId && phoneId && key ? { productId, phoneId, key } : null;
+}
+
+function metaConfig() {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  return token && phoneNumberId ? { token, phoneNumberId } : null;
+}
+
 /**
- * Send a WhatsApp text message via the Meta Cloud API and log the attempt.
- * Silently no-ops (with a log row) when WhatsApp is not configured or disabled.
+ * Send a WhatsApp text message and log the attempt. Uses Maytapi when its
+ * env vars are set, otherwise the Meta Cloud API, otherwise it no-ops with a
+ * log row. The Settings toggle can disable all sends.
  */
 export async function sendWhatsApp(
   toNumber: string | undefined,
@@ -24,10 +38,10 @@ export async function sendWhatsApp(
     .eq('id', 1)
     .single();
 
-  const token = process.env.WHATSAPP_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const maytapi = maytapiConfig();
+  const meta = metaConfig();
 
-  if (!toNumber || !token || !phoneNumberId || settings?.whatsapp_enabled === false) {
+  if (!toNumber || (!maytapi && !meta) || settings?.whatsapp_enabled === false) {
     await admin.from('whatsapp_logs').insert({
       to_number: toNumber ?? 'unconfigured',
       message,
@@ -41,21 +55,38 @@ export async function sendWhatsApp(
   let response: unknown = null;
   let success = false;
   try {
-    const res = await fetch(`${GRAPH_URL}/${phoneNumberId}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: toNumber,
-        type: 'text',
-        text: { body: message },
-      }),
-    });
-    response = await res.json();
-    success = res.ok;
+    if (maytapi) {
+      const res = await fetch(
+        `https://api.maytapi.com/api/${maytapi.productId}/${maytapi.phoneId}/sendMessage`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-maytapi-key': maytapi.key,
+          },
+          body: JSON.stringify({ to_number: toNumber, type: 'text', message }),
+        }
+      );
+      const json = (await res.json()) as { success?: boolean };
+      response = { provider: 'maytapi', ...json };
+      success = res.ok && json.success !== false;
+    } else if (meta) {
+      const res = await fetch(`${GRAPH_URL}/${meta.phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${meta.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: toNumber,
+          type: 'text',
+          text: { body: message },
+        }),
+      });
+      response = { provider: 'meta', ...(await res.json()) };
+      success = res.ok;
+    }
   } catch (err) {
     response = { error: String(err) };
   }
