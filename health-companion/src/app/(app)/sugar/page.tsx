@@ -4,7 +4,8 @@ import { detectTrend, sugarSuggestion, trendLabelHi } from '@/lib/trend';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendChart } from '@/components/charts/trend-chart';
-import { RangeTabs, rangeDays } from '@/components/range-tabs';
+import { RangeTabs } from '@/components/range-tabs';
+import { rangeDays } from '@/lib/utils';
 import { ReadingForm } from './reading-form';
 import type { SugarReading } from '@/lib/types';
 
@@ -16,31 +17,7 @@ const TYPE_LABEL: Record<string, string> = {
   random: 'Random',
 };
 
-export default async function SugarPage(props: {
-  searchParams: Promise<{ range?: string }>;
-}) {
-  // Temporary instrumentation: surface the real error text instead of the
-  // generic boundary while we chase a production-only crash on this page.
-  try {
-    return await SugarPageBody(props);
-  } catch (err) {
-    const digest = (err as { digest?: string })?.digest;
-    if (typeof digest === 'string' && digest.startsWith('NEXT_')) throw err;
-    return (
-      <div className="space-y-3">
-        <h1 className="text-elder-lg font-bold">Sugar — debug info</h1>
-        <p className="text-base text-muted-foreground">
-          यह screenshot भेज दीजिए — इससे exact problem पता चल जाएगी।
-        </p>
-        <pre className="overflow-x-auto whitespace-pre-wrap rounded-2xl bg-muted p-4 text-xs">
-          {err instanceof Error ? `${err.name}: ${err.message}\n${err.stack ?? ''}` : String(err)}
-        </pre>
-      </div>
-    );
-  }
-}
-
-async function SugarPageBody({
+export default async function SugarPage({
   searchParams,
 }: {
   searchParams: Promise<{ range?: string }>;

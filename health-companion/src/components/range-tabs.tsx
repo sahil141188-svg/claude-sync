@@ -12,9 +12,8 @@ const RANGES = [
 
 export type Range = (typeof RANGES)[number][0];
 
-export function rangeDays(range: string): number {
-  return { daily: 1, weekly: 7, monthly: 30, yearly: 365 }[range] ?? 7;
-}
+// NOTE: rangeDays() lives in @/lib/utils — this file is a client module, and
+// server pages calling a client-module function crashes at runtime in prod.
 
 export function RangeTabs({ exclude = [] }: { exclude?: string[] }) {
   const router = useRouter();

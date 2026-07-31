@@ -4,7 +4,8 @@ import { bpSuggestion, detectTrend, trendLabelHi } from '@/lib/trend';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendChart } from '@/components/charts/trend-chart';
-import { RangeTabs, rangeDays } from '@/components/range-tabs';
+import { RangeTabs } from '@/components/range-tabs';
+import { rangeDays } from '@/lib/utils';
 import { BpForm } from './bp-form';
 import type { BpReading } from '@/lib/types';
 
