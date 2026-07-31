@@ -58,6 +58,11 @@ export function calcBmi(weightKg: number, heightCm?: number | null): number | nu
   return Math.round((weightKg / (m * m)) * 10) / 10;
 }
 
+/** Days covered by an analytics range tab. Server-safe (see RangeTabs). */
+export function rangeDays(range: string): number {
+  return { daily: 1, weekly: 7, monthly: 30, yearly: 365 }[range] ?? 7;
+}
+
 /** Deterministic index for "item of the day" pickers. */
 export function dayIndex(listLength: number, offset = 0): number {
   const days = Math.floor(Date.now() / 86_400_000);

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthScoreRing } from '@/components/health-score-ring';
 import { TrendChart } from '@/components/charts/trend-chart';
 import { ComplianceBarChart, DistributionPieChart } from '@/components/charts/bar-pie';
-import { RangeTabs, rangeDays } from '@/components/range-tabs';
+import { RangeTabs } from '@/components/range-tabs';
+import { rangeDays } from '@/lib/utils';
 import type {
   AiReport,
   BpReading,

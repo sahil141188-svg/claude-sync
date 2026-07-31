@@ -3,7 +3,8 @@ import { detectTrend, sugarSuggestion, trendLabelHi } from '@/lib/trend';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendChart } from '@/components/charts/trend-chart';
-import { RangeTabs, rangeDays } from '@/components/range-tabs';
+import { RangeTabs } from '@/components/range-tabs';
+import { rangeDays } from '@/lib/utils';
 import type { SugarReading } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
