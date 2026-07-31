@@ -79,6 +79,6 @@ export async function GET(request: Request) {
       `Achhi neend lijiye. Shubh Ratri ❤️`;
   }
 
-  const result = await sendWhatsApp(patientNumber(), message, `daily_${slot}`);
+  const result = await sendWhatsApp(await patientNumber(), message, `daily_${slot}`);
   return NextResponse.json({ slot, sent: result.success });
 }

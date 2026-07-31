@@ -116,7 +116,7 @@ export async function GET(request: Request) {
   // Weekly report to the patient every Sunday night.
   if (nowInAppTz().getDay() === 0) {
     await sendWhatsApp(
-      patientNumber(),
+      await patientNumber(),
       `Papa, is hafte ka health report ❤️\n\nDawai compliance: ${compliancePct}%\nExercise: ${exerciseMin} minute\nScore: ${score}/100\n\n${summary}`,
       'weekly_report'
     );
