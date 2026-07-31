@@ -102,7 +102,24 @@ export async function sendWhatsApp(
   return { success, response };
 }
 
-export const patientNumber = () => process.env.PATIENT_WHATSAPP_NUMBER;
+/**
+ * Papa's WhatsApp number: read from the patient profile in the database
+ * (editable without redeploys), falling back to the PATIENT_WHATSAPP_NUMBER
+ * env var. Digits-only or undefined when unset.
+ */
+export async function patientNumber(): Promise<string | undefined> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('profiles')
+    .select('phone')
+    .eq('role', 'patient')
+    .not('phone', 'is', null)
+    .limit(1)
+    .maybeSingle();
+  const digits = (data?.phone ?? process.env.PATIENT_WHATSAPP_NUMBER ?? '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits : undefined;
+}
+
 export const caregiverNumber = () => process.env.CAREGIVER_WHATSAPP_NUMBER;
 
 /**

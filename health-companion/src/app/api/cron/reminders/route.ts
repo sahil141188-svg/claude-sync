@@ -38,6 +38,7 @@ export async function GET(request: Request) {
 
   const logs = (data ?? []) as (MedicineLog & { medicines: Medicine })[];
   const results: Record<string, string>[] = [];
+  const papaNumber = await patientNumber();
 
   for (const log of logs) {
     const minutesLate = (now - new Date(log.scheduled_at).getTime()) / 60000;
@@ -58,14 +59,14 @@ export async function GET(request: Request) {
         .eq('id', log.id);
       results.push({ medicine: name, action: 'caregiver_alert' });
     } else if (minutesLate >= 45 && !log.reminder_45_sent) {
-      await sendWhatsApp(patientNumber(), medicineReminderMessage(name, slotHi), 'reminder_45');
+      await sendWhatsApp(papaNumber, medicineReminderMessage(name, slotHi), 'reminder_45');
       await admin
         .from('medicine_logs')
         .update({ reminder_45_sent: true, reminder_15_sent: true })
         .eq('id', log.id);
       results.push({ medicine: name, action: 'reminder_45' });
     } else if (minutesLate >= 15 && !log.reminder_15_sent) {
-      await sendWhatsApp(patientNumber(), medicineReminderMessage(name, slotHi), 'reminder_15');
+      await sendWhatsApp(papaNumber, medicineReminderMessage(name, slotHi), 'reminder_15');
       await admin.from('medicine_logs').update({ reminder_15_sent: true }).eq('id', log.id);
       results.push({ medicine: name, action: 'reminder_15' });
     }
