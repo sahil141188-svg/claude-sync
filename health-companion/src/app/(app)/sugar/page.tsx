@@ -16,7 +16,31 @@ const TYPE_LABEL: Record<string, string> = {
   random: 'Random',
 };
 
-export default async function SugarPage({
+export default async function SugarPage(props: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  // Temporary instrumentation: surface the real error text instead of the
+  // generic boundary while we chase a production-only crash on this page.
+  try {
+    return await SugarPageBody(props);
+  } catch (err) {
+    const digest = (err as { digest?: string })?.digest;
+    if (typeof digest === 'string' && digest.startsWith('NEXT_')) throw err;
+    return (
+      <div className="space-y-3">
+        <h1 className="text-elder-lg font-bold">Sugar — debug info</h1>
+        <p className="text-base text-muted-foreground">
+          यह screenshot भेज दीजिए — इससे exact problem पता चल जाएगी।
+        </p>
+        <pre className="overflow-x-auto whitespace-pre-wrap rounded-2xl bg-muted p-4 text-xs">
+          {err instanceof Error ? `${err.name}: ${err.message}\n${err.stack ?? ''}` : String(err)}
+        </pre>
+      </div>
+    );
+  }
+}
+
+async function SugarPageBody({
   searchParams,
 }: {
   searchParams: Promise<{ range?: string }>;
