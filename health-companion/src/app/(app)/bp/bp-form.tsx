@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { addBpReading } from './actions';
 
 export function BpForm() {
@@ -41,6 +42,17 @@ export function BpForm() {
               <Label htmlFor="pulse">Pulse</Label>
               <Input id="pulse" name="pulse" type="number" min={30} max={220} inputMode="numeric" />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="day_period">कब की reading?</Label>
+            <Select
+              id="day_period"
+              name="day_period"
+              defaultValue={new Date().getHours() < 15 ? 'morning' : 'evening'}
+            >
+              <option value="morning">🌅 सुबह (Morning)</option>
+              <option value="evening">🌆 शाम (Evening)</option>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">

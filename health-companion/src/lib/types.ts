@@ -45,10 +45,13 @@ export interface MedicineLog {
   medicines?: Medicine;
 }
 
+export type DayPeriod = 'morning' | 'evening';
+
 export interface SugarReading {
   id: string;
   value: number;
   reading_type: SugarType;
+  day_period: DayPeriod | null;
   measured_at: string;
   notes: string | null;
 }
@@ -58,6 +61,7 @@ export interface BpReading {
   systolic: number;
   diastolic: number;
   pulse: number | null;
+  day_period: DayPeriod | null;
   measured_at: string;
   notes: string | null;
 }
