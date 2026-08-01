@@ -23,16 +23,24 @@ export function GreetingPopup({ lang }: { lang: 'hi' | 'en' }) {
     }
   }, []);
 
+  const emoji = tod === 'morning' ? '🌅' : tod === 'afternoon' ? '☀️' : '🌙';
+
   return (
     <Dialog open={open} onClose={() => setOpen(false)} showClose={false} className="text-center">
-      <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary shadow-lg">
-        <Heart className="h-10 w-10 fill-white text-white" />
+      <div className="mx-auto mb-4 flex h-24 w-24 animate-heartbeat items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary shadow-lg">
+        <Heart className="h-12 w-12 fill-white text-white" />
       </div>
-      <h2 className="text-elder-xl font-bold">{greetingForTime(tod, lang)}</h2>
-      <p className="mt-4 rounded-2xl bg-muted p-4 text-elder-base italic text-muted-foreground">
+      <h2 className="text-elder-xl font-bold">
+        {greetingForTime(tod, lang)} {emoji}
+      </h2>
+      <p className="mt-4 rounded-2xl bg-gradient-to-br from-primary/5 to-secondary/10 p-4 text-elder-base italic text-muted-foreground">
         “{quoteOfTheDay(lang)}”
       </p>
-      <Button size="lg" className="mt-6 w-full" onClick={() => setOpen(false)}>
+      <Button
+        size="lg"
+        className="mt-6 w-full bg-gradient-to-r from-primary to-secondary"
+        onClick={() => setOpen(false)}
+      >
         {lang === 'hi' ? 'धन्यवाद ❤️' : 'Thank you ❤️'}
       </Button>
     </Dialog>

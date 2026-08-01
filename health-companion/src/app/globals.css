@@ -56,6 +56,10 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(640px 320px at 8% -4%, hsl(var(--primary) / 0.1), transparent 70%),
+      radial-gradient(560px 320px at 96% 4%, hsl(var(--secondary) / 0.1), transparent 70%);
+    background-attachment: fixed;
   }
 }
 
@@ -63,6 +67,19 @@
   .glass {
     @apply border border-white/30 bg-white/60 backdrop-blur-lg dark:border-white/10 dark:bg-white/5;
   }
+
+  /* Children animate in one after another for a lively page load. */
+  .stagger > * {
+    animation: fade-in-up 0.45s ease-out both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0.02s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.07s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.12s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.17s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.22s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.27s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.32s; }
+  .stagger > *:nth-child(8) { animation-delay: 0.37s; }
 }
 
 @media print {
