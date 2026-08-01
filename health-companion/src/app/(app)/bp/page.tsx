@@ -28,7 +28,9 @@ export default async function BpPage({
 
   const rows = (readings ?? []) as BpReading[];
   const chartData = rows.map((r) => ({
-    label: new Date(r.measured_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    label:
+      new Date(r.measured_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) +
+      (r.day_period === 'morning' ? ' 🌅' : r.day_period === 'evening' ? ' 🌆' : ''),
     systolic: r.systolic,
     diastolic: r.diastolic,
     pulse: r.pulse,
@@ -88,6 +90,7 @@ export default async function BpPage({
                       {r.pulse ? ` · ${r.pulse} bpm` : ''}
                     </p>
                     <p className="text-sm text-muted-foreground">
+                      {r.day_period === 'morning' ? '🌅 सुबह · ' : r.day_period === 'evening' ? '🌆 शाम · ' : ''}
                       {new Date(r.measured_at).toLocaleString('en-IN', {
                         day: 'numeric',
                         month: 'short',

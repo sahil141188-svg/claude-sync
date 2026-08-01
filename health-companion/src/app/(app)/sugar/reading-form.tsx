@@ -43,6 +43,17 @@ export function ReadingForm() {
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="day_period">कब की reading?</Label>
+            <Select
+              id="day_period"
+              name="day_period"
+              defaultValue={new Date().getHours() < 15 ? 'morning' : 'evening'}
+            >
+              <option value="morning">🌅 सुबह (Morning)</option>
+              <option value="evening">🌆 शाम (Evening)</option>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="measured_at">समय</Label>

@@ -380,3 +380,11 @@ create policy "hc_upload_medical_report_files" on storage.objects
   for insert to authenticated with check (bucket_id = 'medical-reports' and public.is_caregiver());
 create policy "hc_delete_medical_report_files" on storage.objects
   for delete to authenticated using (bucket_id = 'medical-reports' and public.is_caregiver());
+
+-- ============================================================================
+-- Migration: health_day_period (already applied to the live project)
+-- ============================================================================
+alter table public.sugar_readings
+  add column if not exists day_period text check (day_period in ('morning', 'evening'));
+alter table public.bp_readings
+  add column if not exists day_period text check (day_period in ('morning', 'evening'));

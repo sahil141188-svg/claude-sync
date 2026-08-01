@@ -34,7 +34,9 @@ export default async function SugarPage({
 
   const rows = (readings ?? []) as SugarReading[];
   const chartData = rows.map((r) => ({
-    label: new Date(r.measured_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    label:
+      new Date(r.measured_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) +
+      (r.day_period === 'morning' ? ' 🌅' : r.day_period === 'evening' ? ' 🌆' : ''),
     value: Number(r.value),
   }));
   const trend = detectTrend(rows.map((r) => Number(r.value)));
@@ -85,6 +87,7 @@ export default async function SugarPage({
                   <div>
                     <p className="text-elder-base font-bold tabular-nums">{r.value} mg/dL</p>
                     <p className="text-sm text-muted-foreground">
+                      {r.day_period === 'morning' ? '🌅 सुबह · ' : r.day_period === 'evening' ? '🌆 शाम · ' : ''}
                       {TYPE_LABEL[r.reading_type]} ·{' '}
                       {new Date(r.measured_at).toLocaleString('en-IN', {
                         day: 'numeric',
