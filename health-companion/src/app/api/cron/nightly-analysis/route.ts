@@ -42,6 +42,14 @@ export async function GET(request: Request) {
   const water = waterRes.data ?? [];
   const exercise = exerciseRes.data ?? [];
 
+  // No data at all yet → nothing meaningful to analyse. Don't fabricate a
+  // score or message anyone; the report starts once real entries exist.
+  const hasData =
+    sugar.length + bp.length + weight.length + logs.length + water.length + exercise.length > 0;
+  if (!hasData) {
+    return NextResponse.json({ skipped: 'no health data recorded yet — report not generated' });
+  }
+
   const taken = logs.filter((l) => l.taken).length;
   const compliancePct = logs.length ? Math.round((taken / logs.length) * 100) : 100;
   const exerciseMin = exercise.reduce((s, e) => s + e.duration_min, 0);
