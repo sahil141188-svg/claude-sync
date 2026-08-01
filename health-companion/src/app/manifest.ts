@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Health Care Companion',
-    short_name: 'Papa Health',
+    name: 'Healthcare App',
+    short_name: 'Healthcare',
     description:
       'Personal health assistant for Papa — medicines, sugar, BP, reminders and daily care.',
     start_url: '/dashboard',
