@@ -4,12 +4,12 @@ import { PwaRegister } from '@/components/pwa-register';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Health Care Companion',
+  title: 'Healthcare App',
   description: 'Personal health assistant for Papa — medicines, sugar, BP, reminders and care.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Papa Health',
+    title: 'Healthcare App',
   },
 };
 

@@ -38,8 +38,8 @@ export default function LoginPage() {
           <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary text-white shadow-lg">
             <HeartPulse className="h-10 w-10" />
           </div>
-          <CardTitle className="text-elder-xl">Papa Health</CardTitle>
-          <CardDescription>Health Care Companion में स्वागत है ❤️</CardDescription>
+          <CardTitle className="text-elder-xl">Healthcare App</CardTitle>
+          <CardDescription>आपके स्वास्थ्य साथी में स्वागत है ❤️</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
