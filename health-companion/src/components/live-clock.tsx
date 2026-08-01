@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
-/** Live date + time header for the dashboard. */
-export function LiveClock() {
+/** Live date + time header for the dashboard. `light` renders on gradients. */
+export function LiveClock({ light = false }: { light?: boolean }) {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -29,8 +29,12 @@ export function LiveClock() {
 
   return (
     <div>
-      <p className="text-elder-base font-semibold text-muted-foreground">{date}</p>
-      <p className="text-elder-xl font-bold tabular-nums">{time}</p>
+      <p className={light ? 'text-elder-base font-semibold text-white/85' : 'text-elder-base font-semibold text-muted-foreground'}>
+        {date}
+      </p>
+      <p className={light ? 'text-elder-xl font-bold tabular-nums text-white' : 'text-elder-xl font-bold tabular-nums'}>
+        {time}
+      </p>
     </div>
   );
 }

@@ -35,10 +35,12 @@ export default function LoginPage() {
     <main className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md animate-fade-in-up">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary text-white shadow-lg">
+          <div className="mb-2 flex h-20 w-20 animate-heartbeat items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary text-white shadow-lg">
             <HeartPulse className="h-10 w-10" />
           </div>
-          <CardTitle className="text-elder-xl">Healthcare App</CardTitle>
+          <CardTitle className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-elder-xl text-transparent">
+            Healthcare App
+          </CardTitle>
           <CardDescription>आपके स्वास्थ्य साथी में स्वागत है ❤️</CardDescription>
         </CardHeader>
         <CardContent>

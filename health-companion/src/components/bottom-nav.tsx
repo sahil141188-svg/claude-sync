@@ -27,11 +27,18 @@ export function BottomNav({ role }: { role: UserRole }) {
               <Link
                 href={href}
                 className={cn(
-                  'flex min-h-16 flex-col items-center justify-center gap-1 text-sm font-semibold transition-colors',
+                  'flex min-h-16 flex-col items-center justify-center gap-0.5 text-sm font-semibold transition-colors',
                   active ? 'text-primary' : 'text-muted-foreground'
                 )}
               >
-                <Icon className={cn('h-7 w-7', active && 'scale-110')} />
+                <span
+                  className={cn(
+                    'flex items-center justify-center rounded-full px-4 py-1 transition-all',
+                    active && 'bg-primary/10'
+                  )}
+                >
+                  <Icon className={cn('h-7 w-7 transition-transform', active && 'scale-110')} />
+                </span>
                 {label}
               </Link>
             </li>

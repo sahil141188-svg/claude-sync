@@ -14,8 +14,9 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { ensureTodayLogs } from '@/lib/medicine-schedule';
 import { computeHealthScore } from '@/lib/health-score';
+import { greetingForTime } from '@/lib/quotes';
 import { tipOfTheDay } from '@/lib/tips';
-import { formatTime12, todayStr } from '@/lib/utils';
+import { formatTime12, timeOfDay, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +41,11 @@ export default async function DashboardPage() {
   const today = todayStr();
   const dayStart = `${today}T00:00:00`;
 
-  const [logsRes, sugarRes, bpRes, weightRes, waterRes, exerciseRes, visitRes] = await Promise.all([
+  const monthAgo = new Date(new Date(`${today}T00:00:00`).getTime() - 30 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [logsRes, sugarRes, bpRes, weightRes, waterRes, exerciseRes, visitRes, streakRes] = await Promise.all([
     supabase
       .from('medicine_logs')
       .select('*, medicines(*)')
@@ -58,6 +63,7 @@ export default async function DashboardPage() {
       .order('visit_date')
       .order('visit_time')
       .limit(1),
+    supabase.from('medicine_logs').select('log_date, taken').gte('log_date', monthAgo),
   ]);
 
   const logs = (logsRes.data ?? []) as MedicineLog[];
@@ -72,22 +78,60 @@ export default async function DashboardPage() {
   const medPct = logs.length ? Math.round((taken / logs.length) * 100) : 0;
   const { score } = computeHealthScore({ medicineLogs: logs, sugar, bp, water, exercise });
 
+  // Streak: consecutive days where every scheduled medicine was taken.
+  const byDate = new Map<string, { total: number; taken: number }>();
+  for (const l of (streakRes.data ?? []) as { log_date: string; taken: boolean }[]) {
+    const entry = byDate.get(l.log_date) ?? { total: 0, taken: 0 };
+    entry.total += 1;
+    if (l.taken) entry.taken += 1;
+    byDate.set(l.log_date, entry);
+  }
+  let streak = 0;
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(new Date(`${today}T00:00:00`).getTime() - i * 86_400_000);
+    const p = (n: number) => String(n).padStart(2, '0');
+    const key = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    const s = byDate.get(key);
+    const complete = !!s && s.total > 0 && s.taken === s.total;
+    if (complete) streak++;
+    else if (i === 0) continue; // today may still be in progress
+    else break;
+  }
+
   const now = new Date();
   const upcoming = logs.filter((l) => !l.taken && new Date(l.scheduled_at) >= now).slice(0, 3);
   const exerciseMin = exercise.reduce((s, e) => s + e.duration_min, 0);
   const tip = tipOfTheDay();
+  const tod = timeOfDay();
+  const todEmoji = tod === 'morning' ? '🌅' : tod === 'afternoon' ? '☀️' : '🌙';
 
   return (
-    <div className="space-y-4 animate-fade-in-up">
-      <div className="flex items-start justify-between">
-        <LiveClock />
-        <Link
-          href="/emergency"
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive text-white shadow-lg"
-          aria-label="Emergency SOS"
-        >
-          <Siren className="h-8 w-8" />
-        </Link>
+    <div className="stagger space-y-4">
+      {/* Greeting hero */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-secondary p-5 text-white shadow-lg">
+        <div className="pointer-events-none absolute -right-6 -top-8 text-8xl opacity-25">{todEmoji}</div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-elder-lg font-bold">
+              {greetingForTime(tod)} {todEmoji}
+            </p>
+            <div className="mt-1">
+              <LiveClock light />
+            </div>
+            {streak > 0 && (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-base font-bold backdrop-blur">
+                🔥 {streak} दिन की streak — सभी दवाइयाँ समय पर!
+              </span>
+            )}
+          </div>
+          <Link
+            href="/emergency"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-white shadow-lg backdrop-blur transition-transform active:scale-90"
+            aria-label="Emergency SOS"
+          >
+            <Siren className="h-8 w-8" />
+          </Link>
+        </div>
       </div>
 
       {/* Health score + medicine progress */}
@@ -98,6 +142,7 @@ export default async function DashboardPage() {
             <p className="text-elder-base font-bold">आज का Health Score</p>
             <p className="mt-1 text-base text-muted-foreground">
               दवाइयाँ: {taken}/{logs.length} ली गईं
+              {logs.length > 0 && taken === logs.length && ' 🎉'}
             </p>
             <Progress value={medPct} className="mt-2" barClassName="bg-success" />
           </div>
@@ -113,6 +158,7 @@ export default async function DashboardPage() {
           value={sugar[0] ? `${sugar[0].value}` : '—'}
           unit={sugar[0] ? 'mg/dL' : 'नहीं ली गई'}
           tone="text-rose-500"
+          chip="bg-rose-500/10"
         />
         <StatTile
           href="/bp"
@@ -121,6 +167,7 @@ export default async function DashboardPage() {
           value={bp[0] ? `${bp[0].systolic}/${bp[0].diastolic}` : '—'}
           unit={bp[0] ? 'mmHg' : 'नहीं लिया गया'}
           tone="text-primary"
+          chip="bg-primary/10"
         />
         <StatTile
           href="/weight"
@@ -129,6 +176,7 @@ export default async function DashboardPage() {
           value={weight[0] ? `${weight[0].weight_kg}` : '—'}
           unit={weight[0] ? 'kg' : 'दर्ज करें'}
           tone="text-secondary"
+          chip="bg-secondary/10"
         />
         <StatTile
           href="/water"
@@ -137,6 +185,7 @@ export default async function DashboardPage() {
           value={`${water?.glasses ?? 0}/${water?.goal_glasses ?? 8}`}
           unit="गिलास"
           tone="text-sky-500"
+          chip="bg-sky-500/10"
         />
         <StatTile
           href="/exercise"
@@ -145,6 +194,7 @@ export default async function DashboardPage() {
           value={`${exerciseMin}`}
           unit="मिनट"
           tone="text-amber-500"
+          chip="bg-amber-500/10"
         />
         <StatTile
           href="/analytics"
@@ -153,6 +203,7 @@ export default async function DashboardPage() {
           value="देखें"
           unit="ट्रेंड और ग्राफ"
           tone="text-violet-500"
+          chip="bg-violet-500/10"
         />
       </div>
 
@@ -245,6 +296,7 @@ function StatTile({
   value,
   unit,
   tone,
+  chip,
 }: {
   href: string;
   icon: React.ReactNode;
@@ -252,12 +304,17 @@ function StatTile({
   value: string;
   unit: string;
   tone: string;
+  chip: string;
 }) {
   return (
     <Link href={href}>
-      <Card className="h-full transition-transform active:scale-[0.97]">
+      <Card className="h-full transition-all hover:shadow-md active:scale-[0.96]">
         <CardContent className="p-4">
-          <span className={tone}>{icon}</span>
+          <span
+            className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${chip} ${tone}`}
+          >
+            {icon}
+          </span>
           <p className="mt-2 text-base font-semibold text-muted-foreground">{label}</p>
           <p className="text-2xl font-bold tabular-nums">{value}</p>
           <p className="text-sm text-muted-foreground">{unit}</p>

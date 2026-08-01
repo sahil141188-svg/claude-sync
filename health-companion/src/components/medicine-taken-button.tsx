@@ -11,11 +11,14 @@ import { cn } from '@/lib/utils';
 export function MedicineTakenButton({ logId, taken }: { logId: string; taken: boolean }) {
   const router = useRouter();
   const [isTaken, setIsTaken] = useState(taken);
+  const [celebrate, setCelebrate] = useState(false);
   const [pending, startTransition] = useTransition();
 
   async function markTaken() {
     if (isTaken) return;
     setIsTaken(true);
+    setCelebrate(true);
+    setTimeout(() => setCelebrate(false), 2000);
     const supabase = createClient();
     const { error } = await supabase
       .from('medicine_logs')
@@ -23,6 +26,7 @@ export function MedicineTakenButton({ logId, taken }: { logId: string; taken: bo
       .eq('id', logId);
     if (error) {
       setIsTaken(false);
+      setCelebrate(false);
       return;
     }
     startTransition(() => router.refresh());
@@ -34,10 +38,20 @@ export function MedicineTakenButton({ logId, taken }: { logId: string; taken: bo
       disabled={pending || isTaken}
       variant={isTaken ? 'success' : 'outline'}
       size="lg"
-      className={cn('min-w-32 shrink-0', isTaken && 'disabled:opacity-100')}
+      className={cn(
+        'min-w-32 shrink-0',
+        isTaken && 'disabled:opacity-100',
+        celebrate && 'animate-pop'
+      )}
     >
-      <Check className="h-6 w-6" />
-      {isTaken ? 'ली गई' : 'Taken'}
+      {celebrate ? (
+        <>🎉 शाबाश!</>
+      ) : (
+        <>
+          <Check className="h-6 w-6" />
+          {isTaken ? 'ली गई' : 'Taken'}
+        </>
+      )}
     </Button>
   );
 }
