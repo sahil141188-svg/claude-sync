@@ -2,9 +2,21 @@ import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, ChevronDown, CheckSquare, Calendar, Clock, X } from 'lucide-react'
 import { useERPStore } from '../store/erpStore'
-import type { Lead, FollowUp, LeadStage } from '../types'
+import type { Lead, FollowUp, LeadStage, LeadHealth } from '../types'
 
 type StageFilter = 'all' | LeadStage
+
+const HEALTH_COLORS: Record<LeadHealth, string> = {
+  cold: 'bg-blue-100 text-blue-700',
+  warm: 'bg-amber-100 text-amber-700',
+  hot: 'bg-red-100 text-red-700',
+}
+const HEALTH_LABELS: Record<LeadHealth, string> = {
+  cold: '❄️ Cold',
+  warm: '🌡️ Warm',
+  hot: '🔥 Hot',
+}
+const ALL_HEALTH: LeadHealth[] = ['cold', 'warm', 'hot']
 
 const STAGE_COLORS: Record<LeadStage, string> = {
   new: 'bg-gray-200 text-gray-800',
@@ -74,6 +86,8 @@ interface AddLeadModalProps {
 
 function AddLeadModal({ onClose, userId }: AddLeadModalProps) {
   const addLead = useERPStore(s => s.addLead)
+  const users = useERPStore(s => s.users)
+  const salesExecs = users.filter(u => u.role === 'sales_exec')
   const [form, setForm] = useState({
     name: '',
     company: '',
@@ -83,6 +97,8 @@ function AddLeadModal({ onClose, userId }: AddLeadModalProps) {
     product: '',
     expectedValue: '',
     stage: 'new' as LeadStage,
+    health: 'warm' as LeadHealth,
+    assignedSC: '',
     nextFollowUp: todayStr(),
     notes: '',
   })
@@ -103,6 +119,8 @@ function AddLeadModal({ onClose, userId }: AddLeadModalProps) {
       product: form.product.trim() || undefined,
       expectedValue: parseFloat(form.expectedValue) || 0,
       stage: form.stage,
+      health: form.health,
+      assignedSC: form.assignedSC || undefined,
       nextFollowUp: form.nextFollowUp,
       notes: form.notes.trim() || undefined,
     })
@@ -194,6 +212,36 @@ function AddLeadModal({ onClose, userId }: AddLeadModalProps) {
                 onChange={e => set('stage', e.target.value as LeadStage)}
               >
                 {ALL_STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Lead Health</label>
+              <div className="flex gap-2 mt-1">
+                {ALL_HEALTH.map(h => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => set('health', h)}
+                    className={`flex-1 text-xs font-semibold py-1.5 rounded-lg border transition-colors ${
+                      form.health === h
+                        ? HEALTH_COLORS[h] + ' border-current'
+                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {HEALTH_LABELS[h]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Assigned Sales Expert (SC)</label>
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.assignedSC}
+                onChange={e => set('assignedSC', e.target.value)}
+              >
+                <option value="">— Unassigned —</option>
+                {salesExecs.map(u => <option key={u.id} value={u.name}>{u.name} ({u.team})</option>)}
               </select>
             </div>
             <div className="sm:col-span-2">
@@ -344,7 +392,10 @@ interface LeadCardProps {
 
 function LeadCard({ lead, userId, onFollowUp }: LeadCardProps) {
   const updateLead = useERPStore(s => s.updateLead)
+  const users = useERPStore(s => s.users)
+  const salesExecs = users.filter(u => u.role === 'sales_exec')
   const [stageOpen, setStageOpen] = useState(false)
+  const [scOpen, setScOpen] = useState(false)
   const stale = isStale(lead)
 
   function handleStageChange(stage: LeadStage) {
@@ -364,9 +415,14 @@ function LeadCard({ lead, userId, onFollowUp }: LeadCardProps) {
           <p className="font-bold text-gray-900 truncate">{lead.name}</p>
           <p className="text-sm text-gray-500 truncate">{lead.company}</p>
         </div>
-        <span className={`text-xs font-semibold px-2 py-1 rounded-full shrink-0 ${STAGE_COLORS[lead.stage]}`}>
-          {STAGE_LABELS[lead.stage]}
-        </span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STAGE_COLORS[lead.stage]}`}>
+            {STAGE_LABELS[lead.stage]}
+          </span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${HEALTH_COLORS[lead.health ?? 'warm']}`}>
+            {HEALTH_LABELS[lead.health ?? 'warm']}
+          </span>
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
@@ -378,6 +434,9 @@ function LeadCard({ lead, userId, onFollowUp }: LeadCardProps) {
 
         <div className="text-gray-500">Score</div>
         <div className="font-medium text-gray-800">{lead.score} pts</div>
+
+        <div className="text-gray-500">Sales Expert</div>
+        <div className="text-gray-700 truncate">{lead.assignedSC ?? '—'}</div>
 
         {lead.source && (
           <>
@@ -391,7 +450,24 @@ function LeadCard({ lead, userId, onFollowUp }: LeadCardProps) {
         <p className="mt-2 text-xs text-gray-500 line-clamp-2">{lead.notes}</p>
       )}
 
-      <div className="mt-3 flex gap-2 flex-wrap">
+      {/* Health toggle */}
+      <div className="mt-3 flex gap-1">
+        {ALL_HEALTH.map(h => (
+          <button
+            key={h}
+            onClick={() => updateLead(lead.id, { health: h })}
+            className={`flex-1 text-xs font-semibold py-1.5 rounded-lg border transition-colors ${
+              (lead.health ?? 'warm') === h
+                ? HEALTH_COLORS[h] + ' border-current'
+                : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            {HEALTH_LABELS[h]}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 flex gap-2 flex-wrap">
         <div className="relative">
           <button
             onClick={() => setStageOpen(o => !o)}
@@ -415,6 +491,36 @@ function LeadCard({ lead, userId, onFollowUp }: LeadCardProps) {
             </div>
           )}
         </div>
+
+        {/* SC changer */}
+        <div className="relative">
+          <button
+            onClick={() => setScOpen(o => !o)}
+            className="flex items-center gap-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+          >
+            SC <ChevronDown className="w-3 h-3" />
+          </button>
+          {scOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border rounded-xl shadow-lg z-20 min-w-[160px] py-1">
+              <button
+                onClick={() => { updateLead(lead.id, { assignedSC: undefined }); setScOpen(false) }}
+                className="w-full text-left px-3 py-2 text-xs text-gray-400 hover:bg-gray-50"
+              >
+                — Unassigned
+              </button>
+              {salesExecs.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => { updateLead(lead.id, { assignedSC: u.name }); setScOpen(false) }}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${lead.assignedSC === u.name ? 'font-bold text-purple-700' : 'text-gray-700'}`}
+                >
+                  {u.name} <span className="text-gray-400">({u.team})</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
           onClick={() => onFollowUp(lead)}
           className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -434,7 +540,10 @@ interface LeadRowProps {
 
 function LeadRow({ lead, userId, onFollowUp }: LeadRowProps) {
   const updateLead = useERPStore(s => s.updateLead)
+  const users = useERPStore(s => s.users)
+  const salesExecs = users.filter(u => u.role === 'sales_exec')
   const [stageOpen, setStageOpen] = useState(false)
+  const [scOpen, setScOpen] = useState(false)
   const stale = isStale(lead)
 
   function handleStageChange(stage: LeadStage) {
@@ -453,9 +562,54 @@ function LeadRow({ lead, userId, onFollowUp }: LeadRowProps) {
           {STAGE_LABELS[lead.stage]}
         </span>
       </td>
+      <td className="px-4 py-3">
+        <div className="flex gap-1">
+          {ALL_HEALTH.map(h => (
+            <button
+              key={h}
+              onClick={() => updateLead(lead.id, { health: h })}
+              className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
+                (lead.health ?? 'warm') === h
+                  ? HEALTH_COLORS[h]
+                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              {HEALTH_LABELS[h]}
+            </button>
+          ))}
+        </div>
+      </td>
       <td className="px-4 py-3 text-sm font-medium text-gray-800">{formatINR(lead.expectedValue)}</td>
       <td className={`px-4 py-3 text-sm ${followUpColor(lead.nextFollowUp)}`}>{lead.nextFollowUp}</td>
-      <td className="px-4 py-3 text-sm text-gray-700">{lead.score} pts</td>
+      <td className="px-4 py-3">
+        <div className="relative">
+          <button
+            onClick={() => setScOpen(o => !o)}
+            className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg whitespace-nowrap"
+          >
+            {lead.assignedSC ?? 'Assign'} <ChevronDown className="w-3 h-3" />
+          </button>
+          {scOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border rounded-xl shadow-lg z-20 min-w-[160px] py-1">
+              <button
+                onClick={() => { updateLead(lead.id, { assignedSC: undefined }); setScOpen(false) }}
+                className="w-full text-left px-3 py-2 text-xs text-gray-400 hover:bg-gray-50"
+              >
+                — Unassigned
+              </button>
+              {salesExecs.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => { updateLead(lead.id, { assignedSC: u.name }); setScOpen(false) }}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${lead.assignedSC === u.name ? 'font-bold text-purple-700' : 'text-gray-700'}`}
+                >
+                  {u.name} <span className="text-gray-400">({u.team})</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -648,9 +802,10 @@ export default function LeadTracker() {
                     <tr className="bg-gray-50 text-left">
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Contact</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stage</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Health</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Value</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Next Follow-up</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Score</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sales Expert</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                     </tr>
                   </thead>
