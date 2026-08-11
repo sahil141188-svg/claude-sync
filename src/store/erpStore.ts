@@ -509,3 +509,5 @@ const useERPStore = create<ERPState>()(
 )
 
 export default useERPStore
+
+export { useERPStore }

@@ -3,6 +3,7 @@ export type UserRole = 'super_admin' | 'admin' | 'manager' | 'sales_exec'
 export type Grade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F'
 export type AttendanceStatus = 'present' | 'late' | 'absent' | 'wfh' | 'meeting'
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'demo' | 'proposal' | 'negotiation' | 'won' | 'lost'
+export type LeadHealth = 'cold' | 'warm' | 'hot'
 export type WarningLevel = 'yellow' | 'orange' | 'red'
 export type TaskStatus = 'assigned' | 'accepted' | 'in_progress' | 'submitted' | 'approved' | 'rejected'
 export type TaskPriority = 'high' | 'medium' | 'low'
@@ -57,6 +58,8 @@ export interface Lead {
   stage: LeadStage
   nextFollowUp: string
   notes?: string
+  health?: LeadHealth
+  assignedSC?: string
   createdAt: string
   updatedAt: string
   score: number
