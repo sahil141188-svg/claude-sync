@@ -41,6 +41,7 @@ create table if not exists public.orders_shadow (
   item_summary      text,                 -- "Robotek 20W Charger + 1 more"
   first_item        text,                 -- first line item title, used in review_request
   tracking_url      text,
+  order_status_url  text,                 -- Shopify order status page, used when a courier link is missing
   delivered_at      timestamptz,
   cod_confirmed_at  timestamptz,
   created_at        timestamptz not null default now(),
@@ -69,6 +70,7 @@ create table if not exists public.message_log (
   purpose           text,                                 -- e.g. 'cod_reminder', 'resend'
   dedupe_key        text,                                 -- stops the same message being queued twice
   scheduled_for     timestamptz not null default now(),
+  locked_until      timestamptz,                          -- short lock so cron and webhook never send the same row twice
   sent_at           timestamptz,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
