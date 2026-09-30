@@ -1,0 +1,31 @@
+{
+  "name": "robotek-shopify-order-messages",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Robotek order messages: Shopify webhooks to WhatsApp, logged in Supabase, with a monitoring dashboard",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:webhooks": "node scripts/send-test-webhooks.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.117.0",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.0"
+  }
+}
