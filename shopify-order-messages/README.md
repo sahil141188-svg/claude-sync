@@ -18,6 +18,19 @@ Meta ──statuses / replies──▶ /api/whatsapp/webhook ┘  (delivered/rea
 
 For step-by-step account setup (Shopify webhooks, Meta credentials, template submission), see **[SETUP.md](SETUP.md)**. Template wording for Meta is in **[TEMPLATES_FOR_META.md](TEMPLATES_FOR_META.md)**.
 
+## Live deployment
+
+| | |
+|---|---|
+| Dashboard | https://claude-sync-vj7u.vercel.app/dashboard |
+| Shopify webhook URL | https://claude-sync-vj7u.vercel.app/api/shopify/webhook |
+| WhatsApp webhook URL | https://claude-sync-vj7u.vercel.app/api/whatsapp/webhook |
+| Scheduler | https://claude-sync-vj7u.vercel.app/api/cron/dispatch (needs `Authorization: Bearer <CRON_SECRET>`) |
+
+- Vercel project: `robotek-order-messages` (team sahil141188-8237's projects, Hobby plan), root directory `shopify-order-messages`, deploys from `main`.
+- Database: the Mumbai Supabase project shared with the Robotek ERP. This app's tables and helpers are separate from the ERP's (`om_`-prefixed types and trigger function).
+- Mode: test (`WA_LIVE=false`). Nothing is sent to customers until that is set to `true`.
+
 ---
 
 ## What happens to an order
