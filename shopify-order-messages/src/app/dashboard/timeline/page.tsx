@@ -158,11 +158,11 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
                           {!o && m.order_no ? ` · #${m.order_no}` : ''}
                         </p>
                         {known && (
-                          <p className="mt-2 rounded-lg bg-ink-5 px-3 py-2 text-sm leading-relaxed text-ink-80">
+                          <p className="mt-2 rounded-lg bg-ink-5 px-3 py-2 text-sm leading-relaxed text-ink-80 [overflow-wrap:anywhere]">
                             {renderTemplate(m.template_key, m.vars)}
                           </p>
                         )}
-                        {m.error && <p className="mt-1 text-sm text-maroon">{m.error}</p>}
+                        {m.error && <p className="mt-1 text-sm text-maroon [overflow-wrap:anywhere]">{m.error}</p>}
                       </li>
                     );
                   })}

@@ -61,10 +61,16 @@ class MetaCloudProvider implements WhatsAppProvider {
         cache: 'no-store',
         signal: AbortSignal.timeout(10_000),
       });
-      const json = (await res.json().catch(() => ({}))) as {
+      const text = await res.text();
+      let json: {
         messages?: { id: string }[];
         error?: { message?: string; code?: number; error_data?: { details?: string } };
-      };
+      } = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        // not JSON (proxy or gateway page); the raw text is reported below
+      }
       const id = json.messages?.[0]?.id;
       if (res.ok && id) return { ok: true, messageId: id, testMode: false };
 
@@ -72,7 +78,7 @@ class MetaCloudProvider implements WhatsAppProvider {
       const detail = e?.error_data?.details ? ` (${e.error_data.details})` : '';
       return {
         ok: false,
-        error: `${e?.code ?? res.status}: ${e?.message ?? 'Unknown WhatsApp error'}${detail}`,
+        error: `${e?.code ?? res.status}: ${e?.message ?? (text.slice(0, 200) || 'Unknown WhatsApp error')}${detail}`,
         testMode: false,
       };
     } catch (err) {

@@ -6,7 +6,7 @@ import { sendTemplate } from './whatsapp';
 
 export const RETRY_DELAY_MS = 60_000;
 export const MAX_RETRIES = 1;
-const LOCK_MS = 2 * 60_000;
+const LOCK_SECONDS = 120;
 
 // ---------------------------------------------------------------------------
 // Queueing
@@ -129,20 +129,12 @@ async function checkEligibility(
   return { send: true };
 }
 
-/** Lock a queued row so the cron and the webhook never send it twice. */
+/** Lock a queued row so the cron and the webhook never send it twice (see claim_message in the migration). */
 async function claim(db: SupabaseClient, id: string): Promise<MessageRow | null> {
-  const now = new Date();
-  const { data, error } = await db
-    .from('message_log')
-    .update({ locked_until: new Date(now.getTime() + LOCK_MS).toISOString() })
-    .eq('id', id)
-    .eq('status', 'queued')
-    .lte('scheduled_for', now.toISOString())
-    .or(`locked_until.is.null,locked_until.lt.${now.toISOString()}`)
-    .select('*')
-    .maybeSingle();
+  const { data, error } = await db.rpc('claim_message', { p_id: id, p_lock_seconds: LOCK_SECONDS });
   if (error) throw new Error(`claim: ${error.message}`);
-  return (data as MessageRow) ?? null;
+  const rows = (data ?? []) as MessageRow[];
+  return rows[0] ?? null;
 }
 
 export interface DispatchResult {

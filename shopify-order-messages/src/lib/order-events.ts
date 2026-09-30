@@ -258,7 +258,7 @@ async function onFulfillment(db: SupabaseClient, f: ShopifyFulfillment, isCreate
     await queueMessage(db, {
       order: o,
       templateKey: 'review_request',
-      vars: [name(o), o.first_item || 'product', reviewUrl(o.order_no)],
+      vars: [name(o), productName(o.first_item), reviewUrl(o.order_no)],
       scheduledFor: addDays(deliveredAt, REVIEW_DELAY_DAYS),
     });
   }
@@ -288,6 +288,12 @@ async function onRefund(db: SupabaseClient, refund: ShopifyRefund) {
     dedupeKey: `${o.shopify_order_id}:refund:${refund.id}`,
   });
   await dispatchNow(db, [id]);
+}
+
+/** The template already says "your Robotek {{2}}", so drop a leading brand name from the product title. */
+export function productName(title: string | null): string {
+  const clean = (title ?? '').replace(/^robotek\s+/i, '').trim();
+  return clean || 'product';
 }
 
 export function reviewUrl(orderNo: string): string {

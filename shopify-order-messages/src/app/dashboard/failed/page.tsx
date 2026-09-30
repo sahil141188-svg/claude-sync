@@ -51,7 +51,7 @@ export default async function FailedPage() {
                   <p className="text-sm text-ink-60">
                     {m.phone ?? 'no phone'} · {formatDateTime(m.updated_at)}
                   </p>
-                  <p className="mt-2 break-words rounded-lg bg-red-10 px-3 py-2 text-sm text-maroon">
+                  <p className="mt-2 rounded-lg bg-red-10 [overflow-wrap:anywhere] px-3 py-2 text-sm text-maroon">
                     {m.error ?? 'Unknown error'}
                   </p>
                 </div>

@@ -83,6 +83,27 @@ create index if not exists message_log_phone_idx on public.message_log (phone);
 create index if not exists message_log_wa_id_idx on public.message_log (wa_message_id);
 create index if not exists message_log_created_idx on public.message_log (created_at desc);
 
+-- Atomically lock one due, queued message for sending. Returns the row, or nothing if it is
+-- not due, already locked by another worker, or no longer queued. Called with the service role.
+create or replace function public.claim_message(p_id uuid, p_lock_seconds int default 120)
+returns setof public.message_log
+language sql
+volatile
+security definer
+set search_path = public
+as $$
+  update public.message_log
+     set locked_until = now() + make_interval(secs => p_lock_seconds)
+   where id = p_id
+     and status = 'queued'
+     and scheduled_for <= now()
+     and (locked_until is null or locked_until < now())
+  returning *;
+$$;
+
+revoke all on function public.claim_message(uuid, int) from public, anon, authenticated;
+grant execute on function public.claim_message(uuid, int) to service_role;
+
 -- ---------------------------------------------------------------------------
 -- webhook_events: idempotency for Shopify deliveries
 -- ---------------------------------------------------------------------------
