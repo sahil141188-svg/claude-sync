@@ -32,7 +32,7 @@ Throughout, `<your-domain>` means your Vercel address, for example `robotek-orde
    - `WA_LIVE=false`
    - leave the Shopify and WhatsApp values empty. You'll fill them in the next steps.
 4. Click **Deploy**.
-5. **If you are on the Hobby plan:** before deploying, change the schedule in `vercel.json` to `"0 3 * * *"`. Hobby rejects cron jobs that run more than once a day. Then create a free job at [cron-job.org](https://cron-job.org):
+5. `vercel.json` runs the scheduler once a day so it deploys on any plan. Before going live, make it run every minute. On **Pro**, change the schedule in `vercel.json` to `"* * * * *"`. On **Hobby**, keep it and create a free job at [cron-job.org](https://cron-job.org):
    - URL: `https://<your-domain>/api/cron/dispatch`
    - Schedule: every minute
    - Request header: `Authorization: Bearer <your CRON_SECRET>`
