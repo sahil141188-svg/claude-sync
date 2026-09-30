@@ -7,9 +7,32 @@ function clean(value: string | undefined): string {
   return (value ?? '').replace(/\s+/g, '').replace(/^["']|["']$/g, '');
 }
 
+/**
+ * Robotek's Supabase project. Both values are public by design (they ship to every browser
+ * that opens the ERP or this dashboard), so they are safe to keep in code. They are used only
+ * when the Vercel setting is missing or was pasted with masked characters (•). The secret
+ * service role key is never stored here.
+ */
+const DEFAULT_SUPABASE_URL = 'https://mnxyqvtqegywxybeobzk.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ueHlxdnRxZWd5d3h5YmVvYnprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyODM5MDAsImV4cCI6MjA5Nzg1OTkwMH0.Pml7znEsMDGhpCsMNsYCwoDCLNXbmZk1Y2HSpR-inqU';
+
+const hasHidden = (v: string) => /[^\x21-\x7e]/.test(v);
+const urlOk = (v: string) => !!v && !hasHidden(v) && /^https:\/\/[^/\s]+$/.test(v);
+const keyOk = (v: string) =>
+  !!v && !hasHidden(v) && (v.startsWith('sb_publishable_') || v.split('.').length === 3);
+
 // Referenced as literal process.env.NEXT_PUBLIC_* so Next.js can inline them.
-export const SUPABASE_URL = clean(process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, '');
-export const SUPABASE_ANON_KEY = clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const rawUrl = clean(process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, '');
+const rawKey = clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+export const SUPABASE_URL = urlOk(rawUrl) ? rawUrl : DEFAULT_SUPABASE_URL;
+// A key belongs to one project, so only fall back to the default key with the default URL.
+export const SUPABASE_ANON_KEY = keyOk(rawKey)
+  ? rawKey
+  : SUPABASE_URL === DEFAULT_SUPABASE_URL
+    ? DEFAULT_SUPABASE_ANON_KEY
+    : rawKey;
 
 export function serviceRoleKey(): string {
   return clean(process.env.SUPABASE_SERVICE_ROLE_KEY);

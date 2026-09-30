@@ -17,13 +17,23 @@ describe('supabase env', () => {
     expect(env.configProblems()).toEqual([]);
   });
 
-  it('flags masked values copied from a dashboard', async () => {
-    const env = await load('https://abc.supabase.co', 'eyJhbGciOiJIUzI••••');
-    expect(env.configProblems().join(' ')).toMatch(/ANON_KEY contains hidden characters/);
+  it('falls back to the built-in project settings when values were pasted masked', async () => {
+    const env = await load('https://mnxyqvtqegywxy\u2022\u2022\u2022', 'eyJhbGciOiJIUzI\u2022\u2022\u2022\u2022');
+    expect(env.SUPABASE_URL).toBe('https://mnxyqvtqegywxybeobzk.supabase.co');
+    expect(env.SUPABASE_ANON_KEY.startsWith('eyJ')).toBe(true);
+    expect(env.SUPABASE_ANON_KEY).not.toMatch(/\u2022/);
+    expect(env.configProblems()).toEqual([]);
   });
 
-  it('flags a bad or empty URL', async () => {
-    expect((await load('abc.supabase.co', 'a.b.c')).configProblems().join(' ')).toMatch(/should look like/);
-    expect((await load('', 'a.b.c')).configProblems().join(' ')).toMatch(/URL is empty/);
+  it('falls back when settings are missing', async () => {
+    const env = await load('', '');
+    expect(env.SUPABASE_URL).toBe('https://mnxyqvtqegywxybeobzk.supabase.co');
+    expect(env.configProblems()).toEqual([]);
+  });
+
+  it('never pairs the built-in key with a different project', async () => {
+    const env = await load('https://other.supabase.co', 'eyJhbGciOiJIUzI\u2022\u2022');
+    expect(env.SUPABASE_URL).toBe('https://other.supabase.co');
+    expect(env.configProblems().join(' ')).toMatch(/ANON_KEY contains hidden characters/);
   });
 });
