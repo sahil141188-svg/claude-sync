@@ -153,10 +153,12 @@ npm run typecheck
 
 ### Scheduler (important)
 
-`vercel.json` runs `/api/cron/dispatch` **every minute**. That one job sends Processing (+2 h), COD reminders (+4 h), review requests (+3 days) and the 60-second retry.
+`/api/cron/dispatch` should run **every minute**. That one job sends Processing (+2 h), COD reminders (+4 h), review requests (+3 days) and the 60-second retry.
 
-- **Vercel Pro:** works as is.
-- **Vercel Hobby:** Hobby only allows cron jobs that run once a day, so a per-minute schedule is rejected at deploy time. Either change the schedule in `vercel.json` to daily (`0 3 * * *`) **and** use a free external scheduler such as cron-job.org to call `GET https://<your-domain>/api/cron/dispatch` every minute with the header `Authorization: Bearer <CRON_SECRET>`, or upgrade to Pro.
+`vercel.json` ships with a **once-a-day** schedule (`0 3 * * *`), because Vercel Hobby rejects anything more frequent at deploy time. Before going live, pick one:
+
+- **Vercel Pro:** change the schedule in `vercel.json` to `* * * * *`.
+- **Vercel Hobby:** keep the daily schedule and add a free external scheduler such as cron-job.org that calls `GET https://<your-domain>/api/cron/dispatch` every minute with the header `Authorization: Bearer <CRON_SECRET>`.
 
 Messages due immediately (confirmations, shipped, delivered, cancelled, refund) are sent inside the webhook request and do not depend on the scheduler.
 

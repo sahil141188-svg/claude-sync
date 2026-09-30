@@ -9,7 +9,7 @@ create extension if not exists pgcrypto;
 -- Enums
 -- ---------------------------------------------------------------------------
 do $$ begin
-  create type payment_method as enum ('cod', 'prepaid');
+  create type om_payment_method as enum ('cod', 'prepaid');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -20,7 +20,7 @@ do $$ begin
   -- failed     failed after the retry
   -- cancelled  never sent because the order was cancelled / condition no longer true
   -- skipped    not sent: no opt-in, template switched off, or no phone number
-  create type message_status as enum ('queued', 'sent', 'delivered', 'read', 'failed', 'cancelled', 'skipped');
+  create type om_message_status as enum ('queued', 'sent', 'delivered', 'read', 'failed', 'cancelled', 'skipped');
 exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ create table if not exists public.orders_shadow (
   email             text,
   total             numeric(12, 2),
   currency          text default 'INR',
-  payment_method    payment_method not null default 'prepaid',
+  payment_method    om_payment_method not null default 'prepaid',
   -- pending_payment | awaiting_cod_confirmation | confirmed | shipped
   -- | out_for_delivery | delivered | cancelled | refunded
   status            text not null default 'confirmed',
@@ -62,7 +62,7 @@ create table if not exists public.message_log (
   phone             text,
   template_key      text not null,
   vars              jsonb not null default '[]'::jsonb,   -- ordered template variables
-  status            message_status not null default 'queued',
+  status            om_message_status not null default 'queued',
   wa_message_id     text,
   error             text,
   retries           int not null default 0,
@@ -174,7 +174,7 @@ $$;
 -- ---------------------------------------------------------------------------
 -- updated_at triggers
 -- ---------------------------------------------------------------------------
-create or replace function public.touch_updated_at()
+create or replace function public.om_touch_updated_at()
 returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
@@ -183,19 +183,19 @@ end $$;
 
 drop trigger if exists orders_shadow_touch on public.orders_shadow;
 create trigger orders_shadow_touch before update on public.orders_shadow
-  for each row execute function public.touch_updated_at();
+  for each row execute function public.om_touch_updated_at();
 
 drop trigger if exists message_log_touch on public.message_log;
 create trigger message_log_touch before update on public.message_log
-  for each row execute function public.touch_updated_at();
+  for each row execute function public.om_touch_updated_at();
 
 drop trigger if exists opt_ins_touch on public.opt_ins;
 create trigger opt_ins_touch before update on public.opt_ins
-  for each row execute function public.touch_updated_at();
+  for each row execute function public.om_touch_updated_at();
 
 drop trigger if exists settings_touch on public.settings;
 create trigger settings_touch before update on public.settings
-  for each row execute function public.touch_updated_at();
+  for each row execute function public.om_touch_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security
