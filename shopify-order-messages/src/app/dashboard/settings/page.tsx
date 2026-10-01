@@ -1,7 +1,7 @@
 import { requireAdmin } from '@/lib/auth';
 import { loadSettings } from '@/lib/settings';
 import { TEMPLATE_KEYS, TEMPLATES } from '@/lib/templates';
-import { isLive } from '@/lib/whatsapp';
+import { activeProviderName, isLive } from '@/lib/whatsapp';
 import { setRequireOptIn, setTemplateEnabled } from '../actions';
 import { Toggle } from './toggle';
 
@@ -13,7 +13,17 @@ export default async function SettingsPage() {
 
   const checks = [
     { label: 'Live sending (WA_LIVE)', ok: isLive(), off: 'Test mode: messages are logged, not sent' },
-    { label: 'WhatsApp credentials', ok: !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN), off: 'Not set' },
+    activeProviderName() === 'maytapi'
+      ? {
+          label: 'WhatsApp sender: Maytapi',
+          ok: !!(process.env.MAYTAPI_PRODUCT_ID && process.env.MAYTAPI_PHONE_ID && process.env.MAYTAPI_API_TOKEN),
+          off: 'Maytapi product ID, phone ID or token not set',
+        }
+      : {
+          label: 'WhatsApp sender: Meta Cloud API',
+          ok: !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN),
+          off: 'Not set',
+        },
     { label: 'Shopify webhook secret', ok: !!process.env.SHOPIFY_WEBHOOK_SECRET, off: 'Not set' },
     { label: 'Shopify Admin API (COD tagging)', ok: !!process.env.SHOPIFY_ADMIN_ACCESS_TOKEN, off: 'Not set, COD orders will not be tagged' },
     { label: 'Cron secret', ok: !!process.env.CRON_SECRET, off: 'Not set, scheduled messages will not go out' },

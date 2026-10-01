@@ -83,6 +83,23 @@ scripts/send-test-webhooks.mjs   signed fake Shopify webhooks for testing
 tests/lib.test.ts           unit tests (npm test)
 ```
 
+### Sending through Maytapi instead of Meta
+
+Set `WA_PROVIDER=maytapi` to send through a Maytapi-linked number instead of the WhatsApp Cloud API. With Maytapi there are no Meta templates to approve: the full text from `src/lib/templates.ts` is sent as a normal WhatsApp message.
+
+| Variable | What it is |
+|---|---|
+| `WA_PROVIDER` | `maytapi` |
+| `MAYTAPI_PRODUCT_ID` | Maytapi → Developers → Product ID & Token |
+| `MAYTAPI_API_TOKEN` | same page, the API token |
+| `MAYTAPI_PHONE_ID` | Maytapi → Phones (e.g. `34178`) |
+| `MAYTAPI_WEBHOOK_SECRET` | any long random string |
+| `MAYTAPI_FORWARD_URL` | optional: the webhook URL Maytapi used before, so that integration keeps receiving every event |
+
+In Maytapi → Developers → Webhooks, set the phone's webhook to `https://<your-domain>/api/maytapi/webhook?key=<MAYTAPI_WEBHOOK_SECRET>`. It handles YES / STOP / START replies and delivery/read receipts, and forwards everything to `MAYTAPI_FORWARD_URL`.
+
+Maytapi is an unofficial WhatsApp API that drives a number linked by QR code. WhatsApp can restrict numbers that send many automated messages, so keep the opt-in rule on and use Maytapi's anti-ban settings.
+
 ### Swapping WhatsApp provider
 
 All sending goes through `sendTemplate(phone, templateKey, vars)` in `src/lib/whatsapp.ts`. To move to Gupshup, AiSensy, Interakt etc., add a class implementing `WhatsAppProvider`, return it from `getProvider()` when `WA_PROVIDER=<name>`, and adapt the incoming webhook parser (`parseMetaWebhook`) to that provider's status/reply format. Nothing else changes.

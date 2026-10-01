@@ -18,7 +18,7 @@ const DEFAULT_SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ueHlxdnRxZWd5d3h5YmVvYnprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyODM5MDAsImV4cCI6MjA5Nzg1OTkwMH0.Pml7znEsMDGhpCsMNsYCwoDCLNXbmZk1Y2HSpR-inqU';
 
 const hasHidden = (v: string) => /[^\x21-\x7e]/.test(v);
-const urlOk = (v: string) => !!v && !hasHidden(v) && /^https:\/\/[^/\s]+$/.test(v);
+const urlOk = (v: string) => !!v && !hasHidden(v) && /^https?:\/\/[^/\s]+$/.test(v);
 const keyOk = (v: string) =>
   !!v && !hasHidden(v) && (v.startsWith('sb_publishable_') || v.split('.').length === 3);
 
@@ -48,7 +48,7 @@ export function configProblems(): string[] {
 
   if (!SUPABASE_URL) problems.push('NEXT_PUBLIC_SUPABASE_URL is empty.');
   else if (hidden(SUPABASE_URL)) problems.push('NEXT_PUBLIC_SUPABASE_URL contains hidden characters (such as • from a masked value). Paste it again.');
-  else if (!/^https:\/\/[^/\s]+$/.test(SUPABASE_URL)) problems.push('NEXT_PUBLIC_SUPABASE_URL should look like https://xxxx.supabase.co');
+  else if (!/^https?:\/\/[^/\s]+$/.test(SUPABASE_URL)) problems.push('NEXT_PUBLIC_SUPABASE_URL should look like https://xxxx.supabase.co');
 
   if (!SUPABASE_ANON_KEY) problems.push('NEXT_PUBLIC_SUPABASE_ANON_KEY is empty.');
   else if (hidden(SUPABASE_ANON_KEY)) problems.push('NEXT_PUBLIC_SUPABASE_ANON_KEY contains hidden characters (such as • from a masked value). Paste the full key again.');

@@ -99,6 +99,25 @@ Customers who message you on WhatsApp, or reply YES or START, are also opted in.
 
 ---
 
+## Step 4 (alternative). Use Maytapi instead of Meta
+
+If you already send WhatsApp through Maytapi, you can skip Meta entirely (steps 4 and 5).
+
+1. In Maytapi, open **Developers → Product ID & Token**. Copy the Product ID and the API token.
+2. In Vercel → Environment Variables, add:
+   - `WA_PROVIDER` = `maytapi`
+   - `MAYTAPI_PRODUCT_ID` = your Product ID
+   - `MAYTAPI_API_TOKEN` = your API token (tick Sensitive)
+   - `MAYTAPI_PHONE_ID` = the Phone ID from **Phones** or **Webhooks**, e.g. `34178`
+   - `MAYTAPI_WEBHOOK_SECRET` = any long random string
+   - `MAYTAPI_FORWARD_URL` = the webhook URL currently set for that phone in Maytapi (for example your Google Apps Script). Every event is still delivered there.
+3. Redeploy.
+4. In Maytapi → **Developers → Webhooks → Phone-specific Webhooks**, click **Edit** on that phone and set:
+   `https://<your-domain>/api/maytapi/webhook?key=<your MAYTAPI_WEBHOOK_SECRET>`
+5. Open `https://<your-domain>/api/maytapi/webhook` in a browser. It should show `{"ok":true,"provider":"maytapi"}`.
+
+No templates need approval with Maytapi. Keep `WA_LIVE=false` until you have tested with your own number.
+
 ## Step 4. WhatsApp Cloud API credentials
 
 1. Go to [developers.facebook.com](https://developers.facebook.com) → **My Apps → Create app** → choose **Other**, then **Business**. Link it to Robotek's Meta Business portfolio.
