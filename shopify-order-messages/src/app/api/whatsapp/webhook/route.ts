@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { handleIncomingReply } from '@/lib/order-events';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { MessageStatus } from '@/lib/types';
+import { applyDeliveryStatus } from '@/lib/status';
 import { incomingText, parseMetaWebhook, verifyMetaSignature, type WaStatusUpdate } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
@@ -20,24 +20,12 @@ export async function GET(request: Request) {
   return new Response('Forbidden', { status: 403 });
 }
 
-// A status can only move forward: sent -> delivered -> read. Failed replaces sent/queued only.
-const RANK: Record<string, number> = { queued: 0, sent: 1, delivered: 2, read: 3 };
-
 async function applyStatus(db: ReturnType<typeof createAdminClient>, s: WaStatusUpdate) {
-  const { data: row } = await db.from('message_log').select('id, status').eq('wa_message_id', s.id).maybeSingle();
-  if (!row) return;
-  const current = row.status as MessageStatus;
-
-  if (s.status === 'failed') {
-    if (current === 'delivered' || current === 'read') return;
-    const e = s.errors?.[0];
-    const reason = e ? `${e.code ?? ''} ${e.title ?? e.message ?? ''}${e.error_data?.details ? ` (${e.error_data.details})` : ''}`.trim() : 'Failed';
-    await db.from('message_log').update({ status: 'failed', error: reason }).eq('id', row.id);
-    return;
-  }
-  if ((RANK[s.status] ?? -1) > (RANK[current] ?? 99)) {
-    await db.from('message_log').update({ status: s.status }).eq('id', row.id);
-  }
+  const e = s.errors?.[0];
+  const reason = e
+    ? `${e.code ?? ''} ${e.title ?? e.message ?? ''}${e.error_data?.details ? ` (${e.error_data.details})` : ''}`.trim()
+    : undefined;
+  await applyDeliveryStatus(db, s.id, s.status, reason);
 }
 
 /** Delivery statuses and customer replies. Always answers 200 so Meta does not retry forever. */

@@ -1,10 +1,11 @@
 import crypto from 'node:crypto';
 import { maskPhone, toWaId } from './phone';
+import { MaytapiProvider } from './maytapi';
 import { renderTemplate, TEMPLATES, type TemplateKey } from './templates';
 
 /**
  * WhatsApp sending, behind a small interface so the provider can be swapped
- * (Meta Cloud API today; Gupshup, AiSensy, Interakt etc. later) without touching
+ * (Meta Cloud API or Maytapi today; Gupshup, AiSensy, Interakt etc. later) without touching
  * the rest of the app. Add a class that implements WhatsAppProvider and return it
  * from getProvider() based on WA_PROVIDER.
  */
@@ -103,9 +104,16 @@ class TestModeProvider implements WhatsAppProvider {
   }
 }
 
+/** "meta" (WhatsApp Cloud API, default) or "maytapi". */
+export function activeProviderName(): 'meta' | 'maytapi' {
+  return (process.env.WA_PROVIDER || 'meta').trim().toLowerCase() === 'maytapi' ? 'maytapi' : 'meta';
+}
+
 export function getProvider(): WhatsAppProvider {
   if (!isLive()) return new TestModeProvider();
-  switch ((process.env.WA_PROVIDER || 'meta').toLowerCase()) {
+  switch (activeProviderName()) {
+    case 'maytapi':
+      return new MaytapiProvider();
     case 'meta':
     default:
       return new MetaCloudProvider();

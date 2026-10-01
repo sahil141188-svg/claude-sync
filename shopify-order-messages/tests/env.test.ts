@@ -25,6 +25,12 @@ describe('supabase env', () => {
     expect(env.configProblems()).toEqual([]);
   });
 
+  it('keeps a local http URL (local development)', async () => {
+    const env = await load('http://localhost:54321', 'a.b.c');
+    expect(env.SUPABASE_URL).toBe('http://localhost:54321');
+    expect(env.SUPABASE_ANON_KEY).toBe('a.b.c');
+  });
+
   it('falls back when settings are missing', async () => {
     const env = await load('', '');
     expect(env.SUPABASE_URL).toBe('https://mnxyqvtqegywxybeobzk.supabase.co');
