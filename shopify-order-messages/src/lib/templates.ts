@@ -43,7 +43,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Order confirmed',
     category: 'utility',
     trigger: 'Prepaid order placed (orders/create or orders/paid), or a COD customer replies YES',
-    body: "Hi {{1}}, thank you for choosing Robotek. Your order #{{2}} ({{3}}, Rs {{4}}) is confirmed. We'll update you as soon as it ships.",
+    body: "Thank you {{1}} for ordering with ROBOTEK.\n\nOrder ID: #{{2}}\nItem: {{3}}\nOrder value: Rs {{4}}\n\nYour order is confirmed. We'll share tracking details as soon as it ships.",
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1042' },
@@ -56,11 +56,12 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'COD confirmation',
     category: 'utility',
     trigger: 'Cash on Delivery order placed; sent again as a reminder after 4 hours with no reply',
-    body: "Hi {{1}}, we received your Cash on Delivery order #{{2}} (Rs {{3}}). Reply YES to confirm and we'll dispatch it right away.",
+    body: 'Thank you {{1}} for ordering with ROBOTEK.\n\nOrder ID: #{{2}}\nItem: {{3}}\nAmount to pay on delivery: Rs {{4}}\n\nPlease reply YES to confirm your Cash on Delivery order. We will dispatch it as soon as you confirm.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1043' },
-      { name: 'Order total', sample: '599' },
+      { name: 'Items', sample: '7-Color Super Soft Silicone Cable' },
+      { name: 'Amount to pay', sample: '199' },
     ],
   },
   order_processing: {
@@ -68,7 +69,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Order processing',
     category: 'utility',
     trigger: '2 hours after the order is confirmed, if it has not shipped yet',
-    body: 'Hi {{1}}, your order #{{2}} is being checked and packed by our team. Every Robotek product is tested before it leaves our factory.',
+    body: 'Hi {{1}}, your ROBOTEK order is being checked and packed.\n\nOrder ID: #{{2}}\n\nEvery ROBOTEK product is tested before it leaves our factory.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1042' },
@@ -79,7 +80,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Order shipped',
     category: 'utility',
     trigger: 'Fulfillment created (fulfillments/create)',
-    body: 'Hi {{1}}, your order #{{2}} has been shipped. Track it here: {{3}}. Expected delivery by {{4}}.',
+    body: 'Hi {{1}}, your ROBOTEK order has been shipped.\n\nOrder ID: #{{2}}\nTrack your order: {{3}}\nExpected delivery: {{4}}\n\nThank you for choosing ROBOTEK.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1042' },
@@ -92,7 +93,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Out for delivery',
     category: 'utility',
     trigger: 'Fulfillment update with shipment status "out_for_delivery"',
-    body: 'Hi {{1}}, your Robotek order #{{2}} is out for delivery today. Please keep your phone handy.',
+    body: 'Hi {{1}}, your ROBOTEK order is out for delivery today.\n\nOrder ID: #{{2}}\n\nPlease keep your phone handy so our delivery partner can reach you.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1042' },
@@ -103,7 +104,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Order delivered',
     category: 'utility',
     trigger: 'Fulfillment update with shipment status "delivered"',
-    body: "Hi {{1}}, your order #{{2}} has been delivered. We hope you enjoy your Robotek product. If anything isn't right, reply here and we'll sort it out.",
+    body: "Hi {{1}}, your ROBOTEK order has been delivered.\n\nOrder ID: #{{2}}\n\nWe hope you enjoy your product. If anything isn't right, reply here and we'll sort it out.",
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1042' },
@@ -115,7 +116,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     category: 'marketing',
     trigger: '3 days after delivery (always needs opt-in, it is a marketing message)',
     // Meta rejects templates that end with a variable, so a short closing line follows the link.
-    body: 'Hi {{1}}, how is your Robotek {{2}} working for you? Your feedback helps us keep improving: {{3}} Thank you.',
+    body: 'Hi {{1}}, how is your ROBOTEK {{2}} working for you?\n\nYour feedback helps us keep improving: {{3}}\n\nThank you.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Product name', sample: '20W Fast Charger' },
@@ -127,7 +128,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Order cancelled',
     category: 'utility',
     trigger: 'Order cancelled (orders/cancelled)',
-    body: 'Hi {{1}}, your order #{{2}} has been cancelled as requested. If you paid online, your refund will reach you in 5-7 working days. We hope to serve you again.',
+    body: 'Hi {{1}}, your ROBOTEK order has been cancelled as requested.\n\nOrder ID: #{{2}}\n\nIf you paid online, your refund will reach you in 5-7 working days. We hope to serve you again.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
       { name: 'Order number', sample: '1042' },
@@ -138,11 +139,11 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     label: 'Refund processed',
     category: 'utility',
     trigger: 'Refund created (refunds/create) with a refunded amount above zero',
-    body: 'Hi {{1}}, the refund of Rs {{2}} for order #{{3}} has been processed. It may take 5-7 working days to show in your account.',
+    body: 'Hi {{1}}, your ROBOTEK refund has been processed.\n\nOrder ID: #{{2}}\nRefund amount: Rs {{3}}\n\nIt may take 5-7 working days to show in your account.',
     variables: [
       { name: 'Customer first name', sample: 'Ravi' },
-      { name: 'Refund amount', sample: '899' },
       { name: 'Order number', sample: '1042' },
+      { name: 'Refund amount', sample: '899' },
     ],
   },
 };

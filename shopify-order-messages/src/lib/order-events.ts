@@ -156,7 +156,7 @@ async function onOrderCreated(db: SupabaseClient, order: ShopifyOrder) {
 
   if (o.payment_method === 'cod') {
     if (o.status !== 'awaiting_cod_confirmation') return;
-    const vars = [name(o), o.order_no, formatAmount(o.total)];
+    const vars = [name(o), o.order_no, o.item_summary || 'your items', formatAmount(o.total)];
     const first = await queueMessage(db, { order: o, templateKey: 'cod_confirmation', vars });
     await queueMessage(db, {
       order: o,
@@ -284,7 +284,7 @@ async function onRefund(db: SupabaseClient, refund: ShopifyRefund) {
   const id = await queueMessage(db, {
     order: o,
     templateKey: 'refund_processed',
-    vars: [name(o), formatAmount(amount), o.order_no],
+    vars: [name(o), o.order_no, formatAmount(amount)],
     dedupeKey: `${o.shopify_order_id}:refund:${refund.id}`,
   });
   await dispatchNow(db, [id]);

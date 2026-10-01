@@ -91,6 +91,9 @@ async function checkEligibility(
   const key = msg.template_key;
   const def = TEMPLATES[key];
   if (!def) return { send: false, status: 'skipped', reason: `Unknown template ${key}` };
+  if (!Array.isArray(msg.vars) || msg.vars.length !== def.variables.length) {
+    return { send: false, status: 'skipped', reason: 'Message format changed since this was queued' };
+  }
   // Test messages from the dashboard skip the switches and opt-in rule (but never an explicit STOP).
   const isTest = msg.purpose === 'test';
 

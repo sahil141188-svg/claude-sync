@@ -1,16 +1,11 @@
-# WhatsApp templates for Meta approval
+# WhatsApp message templates
 
-Submit each template in **Meta Business Manager > WhatsApp Manager > Message templates > Create template**.
+These are the 9 messages the app sends. The source of truth is `src/lib/templates.ts`.
 
-For every template:
+- **Using Maytapi** (current setup): nothing to submit. The app sends this exact text, filled in for each order.
+- **Using the Meta WhatsApp Cloud API** (`WA_PROVIDER=meta`): create each one in **WhatsApp Manager > Message templates > Create template**, with the exact name, the category shown, language English (`en`), type Default (text only, no header, footer or buttons). Paste the body, keeping the blank lines, and fill in every sample value.
 
-- **Name:** copy it exactly as written below. The app sends this name, so a typo stops the message.
-- **Language:** English (`en`). If you choose English (US) instead, set `WA_TEMPLATE_LANG=en_US`.
-- **Category:** as listed. Only `review_request` is Marketing; the rest are Utility.
-- **Type:** Default (text only). No header, no footer, no buttons.
-- **Body:** paste the body text. Meta turns `{{1}}`, `{{2}}` into variables. Fill in the sample values shown so the reviewer can see a real example.
-
-The source of truth is `src/lib/templates.ts`. If you edit a template's wording in Meta, update the `body` there too, so the dashboard preview matches what customers get.
+If you change any wording, change it in `src/lib/templates.ts` too (and in Meta, if you use it).
 
 ---
 
@@ -19,12 +14,18 @@ The source of truth is `src/lib/templates.ts`. If you edit a template's wording 
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | A prepaid order is placed, or a COD customer replies YES |
+| Sent when | Prepaid order placed (orders/create or orders/paid), or a COD customer replies YES |
 
 **Body**
 
 ```
-Hi {{1}}, thank you for choosing Robotek. Your order #{{2}} ({{3}}, Rs {{4}}) is confirmed. We'll update you as soon as it ships.
+Thank you {{1}} for ordering with ROBOTEK.
+
+Order ID: #{{2}}
+Item: {{3}}
+Order value: Rs {{4}}
+
+Your order is confirmed. We'll share tracking details as soon as it ships.
 ```
 
 | Variable | Meaning | Sample |
@@ -41,19 +42,26 @@ Hi {{1}}, thank you for choosing Robotek. Your order #{{2}} ({{3}}, Rs {{4}}) is
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | A Cash on Delivery order is placed. Sent once more after 4 hours if there is no reply. |
+| Sent when | Cash on Delivery order placed; sent again as a reminder after 4 hours with no reply |
 
 **Body**
 
 ```
-Hi {{1}}, we received your Cash on Delivery order #{{2}} (Rs {{3}}). Reply YES to confirm and we'll dispatch it right away.
+Thank you {{1}} for ordering with ROBOTEK.
+
+Order ID: #{{2}}
+Item: {{3}}
+Amount to pay on delivery: Rs {{4}}
+
+Please reply YES to confirm your Cash on Delivery order. We will dispatch it as soon as you confirm.
 ```
 
 | Variable | Meaning | Sample |
 |---|---|---|
 | {{1}} | Customer first name | Ravi |
 | {{2}} | Order number | 1043 |
-| {{3}} | Order total | 599 |
+| {{3}} | Items | 7-Color Super Soft Silicone Cable |
+| {{4}} | Amount to pay | 199 |
 
 ---
 
@@ -62,12 +70,16 @@ Hi {{1}}, we received your Cash on Delivery order #{{2}} (Rs {{3}}). Reply YES t
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | 2 hours after confirmation, only if the order has not shipped |
+| Sent when | 2 hours after the order is confirmed, if it has not shipped yet |
 
 **Body**
 
 ```
-Hi {{1}}, your order #{{2}} is being checked and packed by our team. Every Robotek product is tested before it leaves our factory.
+Hi {{1}}, your ROBOTEK order is being checked and packed.
+
+Order ID: #{{2}}
+
+Every ROBOTEK product is tested before it leaves our factory.
 ```
 
 | Variable | Meaning | Sample |
@@ -82,12 +94,18 @@ Hi {{1}}, your order #{{2}} is being checked and packed by our team. Every Robot
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | A fulfillment is created in Shopify |
+| Sent when | Fulfillment created (fulfillments/create) |
 
 **Body**
 
 ```
-Hi {{1}}, your order #{{2}} has been shipped. Track it here: {{3}}. Expected delivery by {{4}}.
+Hi {{1}}, your ROBOTEK order has been shipped.
+
+Order ID: #{{2}}
+Track your order: {{3}}
+Expected delivery: {{4}}
+
+Thank you for choosing ROBOTEK.
 ```
 
 | Variable | Meaning | Sample |
@@ -104,12 +122,16 @@ Hi {{1}}, your order #{{2}} has been shipped. Track it here: {{3}}. Expected del
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | The courier marks the shipment "out for delivery" |
+| Sent when | Fulfillment update with shipment status "out_for_delivery" |
 
 **Body**
 
 ```
-Hi {{1}}, your Robotek order #{{2}} is out for delivery today. Please keep your phone handy.
+Hi {{1}}, your ROBOTEK order is out for delivery today.
+
+Order ID: #{{2}}
+
+Please keep your phone handy so our delivery partner can reach you.
 ```
 
 | Variable | Meaning | Sample |
@@ -124,12 +146,16 @@ Hi {{1}}, your Robotek order #{{2}} is out for delivery today. Please keep your 
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | The courier marks the shipment "delivered" |
+| Sent when | Fulfillment update with shipment status "delivered" |
 
 **Body**
 
 ```
-Hi {{1}}, your order #{{2}} has been delivered. We hope you enjoy your Robotek product. If anything isn't right, reply here and we'll sort it out.
+Hi {{1}}, your ROBOTEK order has been delivered.
+
+Order ID: #{{2}}
+
+We hope you enjoy your product. If anything isn't right, reply here and we'll sort it out.
 ```
 
 | Variable | Meaning | Sample |
@@ -144,12 +170,16 @@ Hi {{1}}, your order #{{2}} has been delivered. We hope you enjoy your Robotek p
 | | |
 |---|---|
 | Category | **Marketing** |
-| Sent when | 3 days after delivery. Only to customers who have opted in. |
+| Sent when | 3 days after delivery (always needs opt-in, it is a marketing message) |
 
 **Body**
 
 ```
-Hi {{1}}, how is your Robotek {{2}} working for you? Your feedback helps us keep improving: {{3}} Thank you.
+Hi {{1}}, how is your ROBOTEK {{2}} working for you?
+
+Your feedback helps us keep improving: {{3}}
+
+Thank you.
 ```
 
 | Variable | Meaning | Sample |
@@ -158,8 +188,6 @@ Hi {{1}}, how is your Robotek {{2}} working for you? Your feedback helps us keep
 | {{2}} | Product name | 20W Fast Charger |
 | {{3}} | Review link | https://robotekindia.com/pages/reviews?order=1042 |
 
-> **Change from the brief:** Meta rejects a template whose body ends with a variable. The original text ended with `{{3}}`, so " Thank you." was added after the link. If you prefer other closing words, change them here and in `src/lib/templates.ts`.
-
 ---
 
 ## 8. order_cancelled
@@ -167,12 +195,16 @@ Hi {{1}}, how is your Robotek {{2}} working for you? Your feedback helps us keep
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | The order is cancelled in Shopify |
+| Sent when | Order cancelled (orders/cancelled) |
 
 **Body**
 
 ```
-Hi {{1}}, your order #{{2}} has been cancelled as requested. If you paid online, your refund will reach you in 5-7 working days. We hope to serve you again.
+Hi {{1}}, your ROBOTEK order has been cancelled as requested.
+
+Order ID: #{{2}}
+
+If you paid online, your refund will reach you in 5-7 working days. We hope to serve you again.
 ```
 
 | Variable | Meaning | Sample |
@@ -187,25 +219,30 @@ Hi {{1}}, your order #{{2}} has been cancelled as requested. If you paid online,
 | | |
 |---|---|
 | Category | Utility |
-| Sent when | A refund with money is created in Shopify |
+| Sent when | Refund created (refunds/create) with a refunded amount above zero |
 
 **Body**
 
 ```
-Hi {{1}}, the refund of Rs {{2}} for order #{{3}} has been processed. It may take 5-7 working days to show in your account.
+Hi {{1}}, your ROBOTEK refund has been processed.
+
+Order ID: #{{2}}
+Refund amount: Rs {{3}}
+
+It may take 5-7 working days to show in your account.
 ```
 
 | Variable | Meaning | Sample |
 |---|---|---|
 | {{1}} | Customer first name | Ravi |
-| {{2}} | Refund amount | 899 |
-| {{3}} | Order number | 1042 |
+| {{2}} | Order number | 1042 |
+| {{3}} | Refund amount | 899 |
 
 ---
 
-## Tips so templates pass review first time
+## Tips for Meta approval
 
 - Keep the names exactly lowercase_snake_case as above.
-- Always fill every sample value. Missing samples are the most common rejection reason.
-- Don't pick Utility for `review_request`. Meta re-categorises it as Marketing anyway, and a mismatch can pause the template.
-- Approval usually takes from a few minutes to 24 hours. Messages using an unapproved template fail with error 132001; they will show on the dashboard's Failed tab, and you can resend them once approved.
+- Fill every sample value; missing samples are the most common rejection reason.
+- A body can't start or end with a variable, which is why some messages end with a short closing line.
+- Messages using a template that isn't approved fail with error 132001 and appear on the dashboard's Failed tab; resend them once approved.

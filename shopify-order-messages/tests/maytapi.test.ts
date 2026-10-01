@@ -63,7 +63,8 @@ describe('MaytapiProvider', () => {
     expect((init.headers as Record<string, string>)['x-maytapi-key']).toBe('tok');
     const body = JSON.parse(String(init.body));
     expect(body.to_number).toBe('919876543210');
-    expect(body.message).toContain('Hi Ravi, your order #1042 is being checked and packed');
+    expect(body.message).toContain('Hi Ravi, your ROBOTEK order is being checked and packed.');
+    expect(body.message).toContain('Order ID: #1042');
   });
 
   it('reports a clear error when not configured or rejected', async () => {
