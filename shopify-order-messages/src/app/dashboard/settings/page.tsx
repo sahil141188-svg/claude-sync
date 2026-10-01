@@ -3,6 +3,7 @@ import { loadSettings } from '@/lib/settings';
 import { TEMPLATE_KEYS, TEMPLATES } from '@/lib/templates';
 import { activeProviderName, isLive } from '@/lib/whatsapp';
 import { setRequireOptIn, setTemplateEnabled } from '../actions';
+import { TestSend } from './test-send';
 import { Toggle } from './toggle';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,17 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-base font-semibold text-maroon">Consent</h1>
+        <h1 className="text-base font-semibold text-maroon">Send a test message</h1>
+        <p className="mb-3 text-sm text-ink-60">
+          {isLive() ? 'Live: this really sends a WhatsApp message.' : 'Test mode: the message is logged, not sent, until WA_LIVE=true.'}
+        </p>
+        <div className="rounded-xl border border-ink-10">
+          <TestSend templates={TEMPLATE_KEYS.map((k) => ({ key: k, label: TEMPLATES[k].label }))} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-maroon">Consent</h2>
         <p className="mb-3 text-sm text-ink-60">Review requests are marketing and always need an opt-in, whatever this is set to.</p>
         <div className="rounded-xl border border-ink-10">
           <Toggle
