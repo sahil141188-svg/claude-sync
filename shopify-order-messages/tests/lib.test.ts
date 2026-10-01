@@ -78,8 +78,17 @@ describe('templates', () => {
     for (const k of TEMPLATE_KEYS) expect(TEMPLATES[k].body).not.toMatch(/\p{Extended_Pictographic}/u);
   });
   it('renders samples', () => {
-    expect(renderTemplate('order_shipped', sampleVars('order_shipped'))).toContain('Track it here: https://');
+    expect(renderTemplate('order_shipped', sampleVars('order_shipped'))).toContain('Track your order: https://');
   });
+  it('COD confirmation carries the order details and the YES ask', () => {
+    const text = renderTemplate('cod_confirmation', ['Sarajit', '01967', '7-Color Super Soft Silicone Cable', '199']);
+    expect(text.startsWith('Thank you Sarajit for ordering with ROBOTEK.')).toBe(true);
+    expect(text).toContain('Order ID: #01967');
+    expect(text).toContain('Item: 7-Color Super Soft Silicone Cable');
+    expect(text).toContain('Amount to pay on delivery: Rs 199');
+    expect(text).toContain('reply YES');
+  });
+
   it('rejects wrong variable counts', () => {
     expect(() => assertVars('order_processing', ['Ravi'])).toThrow();
   });

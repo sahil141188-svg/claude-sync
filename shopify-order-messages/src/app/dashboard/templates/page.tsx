@@ -29,7 +29,7 @@ export default async function TemplatesPage() {
                   {t.category === 'marketing' ? 'Marketing' : 'Utility'}
                 </span>
               </div>
-              <p className="mt-3 rounded-lg rounded-tl-none border border-ink-10 bg-ink-5 px-3 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere]">
+              <p className="mt-3 rounded-lg rounded-tl-none border border-ink-10 bg-ink-5 px-3 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line">
                 {renderTemplate(key, sampleVars(key))}
               </p>
               <p className="mt-3 text-xs text-ink-60">
