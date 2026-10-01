@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadSettings, type AppSettings } from './settings';
-import { assertVars, TEMPLATES, type TemplateKey } from './templates';
+import { assertVars, sampleVars, TEMPLATES, type TemplateKey } from './templates';
 import type { MessageRow, ShadowOrder } from './types';
 import { sendTemplate } from './whatsapp';
 
@@ -91,8 +91,10 @@ async function checkEligibility(
   const key = msg.template_key;
   const def = TEMPLATES[key];
   if (!def) return { send: false, status: 'skipped', reason: `Unknown template ${key}` };
+  // Test messages from the dashboard skip the switches and opt-in rule (but never an explicit STOP).
+  const isTest = msg.purpose === 'test';
 
-  if (!settings.enabledTemplates[key]) {
+  if (!isTest && !settings.enabledTemplates[key]) {
     return { send: false, status: 'skipped', reason: 'Message type switched off in Settings' };
   }
   if (!msg.phone) return { send: false, status: 'skipped', reason: 'No valid phone number on the order' };
@@ -103,7 +105,7 @@ async function checkEligibility(
   if (optIn && optIn.opted_in === false) {
     return { send: false, status: 'skipped', reason: 'Customer opted out' };
   }
-  if ((settings.requireOptIn || def.category === 'marketing') && !optIn?.opted_in) {
+  if (!isTest && (settings.requireOptIn || def.category === 'marketing') && !optIn?.opted_in) {
     return { send: false, status: 'skipped', reason: 'Customer has not opted in' };
   }
 
@@ -271,4 +273,23 @@ export async function resendMessage(db: SupabaseClient, id: string): Promise<Dis
   await db.from('message_log').update({ purpose: 'resent' }).eq('id', id);
 
   return dispatchMessage(db, inserted.id as string);
+}
+
+/** Send one template with sample values to any number, right now (dashboard "Send a test message"). */
+export async function sendTestMessage(db: SupabaseClient, phone: string, templateKey: TemplateKey): Promise<DispatchResult> {
+  const { data, error } = await db
+    .from('message_log')
+    .insert({
+      order_no: 'TEST',
+      phone,
+      template_key: templateKey,
+      vars: sampleVars(templateKey),
+      status: 'queued',
+      purpose: 'test',
+      dedupe_key: null,
+    })
+    .select('id')
+    .single();
+  if (error || !data) return { id: '', outcome: 'failed', detail: error?.message ?? 'Insert failed' };
+  return dispatchMessage(db, data.id as string);
 }

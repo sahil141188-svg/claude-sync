@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth';
-import { resendMessage } from '@/lib/messages';
+import { resendMessage, sendTestMessage } from '@/lib/messages';
+import { normalizePhone } from '@/lib/phone';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isTemplateKey } from '@/lib/templates';
+import { activeProviderName, isLive } from '@/lib/whatsapp';
 
 export async function resend(id: string): Promise<{ ok: boolean; message: string }> {
   await requireAdmin();
@@ -38,4 +40,25 @@ export async function setRequireOptIn(enabled: boolean): Promise<{ ok: boolean }
   const { error } = await supabase.from('settings').update({ value: enabled }).eq('key', 'require_opt_in');
   revalidatePath('/dashboard/settings');
   return { ok: !error };
+}
+
+export async function sendTest(rawPhone: string, key: string): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return { ok: false, message: 'Enter a valid mobile number, e.g. 98765 43210.' };
+  if (!isTemplateKey(key)) return { ok: false, message: 'Pick a message.' };
+
+  const result = await sendTestMessage(createAdminClient(), phone, key);
+  revalidatePath('/dashboard', 'layout');
+  const via = activeProviderName() === 'maytapi' ? 'Maytapi' : 'WhatsApp Cloud API';
+  switch (result.outcome) {
+    case 'sent':
+      return isLive()
+        ? { ok: true, message: `Sent to ${phone} via ${via}. It should arrive within a few seconds.` }
+        : { ok: true, message: `Test mode: logged for ${phone} but not sent. Set WA_LIVE=true in Vercel and redeploy to really send.` };
+    case 'retry':
+      return { ok: false, message: `Failed, will retry in 60 seconds: ${result.detail}` };
+    default:
+      return { ok: false, message: `Not sent: ${result.detail ?? result.outcome}` };
+  }
 }
