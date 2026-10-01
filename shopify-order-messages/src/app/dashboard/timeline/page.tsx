@@ -157,10 +157,13 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
                           {m.retries > 0 ? ` · retried ${m.retries}x` : ''}
                           {!o && m.order_no ? ` · #${m.order_no}` : ''}
                         </p>
-                        {known && (
+                        {known && Array.isArray(m.vars) && m.vars.length === TEMPLATES[m.template_key].variables.length && (
                           <p className="mt-2 rounded-lg bg-ink-5 px-3 py-2 text-sm leading-relaxed text-ink-80 [overflow-wrap:anywhere] whitespace-pre-line">
                             {renderTemplate(m.template_key, m.vars)}
                           </p>
+                        )}
+                        {known && !(Array.isArray(m.vars) && m.vars.length === TEMPLATES[m.template_key].variables.length) && (
+                          <p className="mt-2 text-xs text-ink-60">Saved in an older message format, so no preview is shown.</p>
                         )}
                         {m.error && <p className="mt-1 text-sm text-maroon [overflow-wrap:anywhere]">{m.error}</p>}
                       </li>
