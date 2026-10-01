@@ -118,6 +118,7 @@ Copy `.env.example` to `.env.local` for local work; add the same keys in Vercel 
 | `SHOPIFY_WEBHOOK_SECRET` | yes | The signing secret shown under Settings → Notifications → Webhooks, or the custom app's API secret key if you create webhooks from an app. |
 | `SHOPIFY_STORE_DOMAIN` | for COD tagging | `robotek1.myshopify.com` |
 | `SHOPIFY_ADMIN_ACCESS_TOKEN` | for COD tagging | Custom app Admin API token with `read_orders` and `write_orders`. Without it, YES replies still confirm the order in this system but the Shopify tag is not added (logged). Also used to fetch orders that were placed before this system went live. |
+| `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` | for COD tagging (alternative) | For an app made in the Shopify **Dev Dashboard** and installed on the store, instead of a `shpat_` token. The app fetches a short-lived token with the client-credentials grant and caches it. Needs `read_orders`, `write_orders`. |
 | `SHOPIFY_API_VERSION` | no | Default `2025-07` |
 | `WA_PHONE_NUMBER_ID` | to send | Meta → WhatsApp → API Setup → Phone number ID |
 | `WA_ACCESS_TOKEN` | to send | Permanent System User token with `whatsapp_business_messaging` |

@@ -26,7 +26,11 @@ export default async function SettingsPage() {
           off: 'Not set',
         },
     { label: 'Shopify webhook secret', ok: !!process.env.SHOPIFY_WEBHOOK_SECRET, off: 'Not set' },
-    { label: 'Shopify Admin API (COD tagging)', ok: !!process.env.SHOPIFY_ADMIN_ACCESS_TOKEN, off: 'Not set, COD orders will not be tagged' },
+    {
+      label: 'Shopify Admin API (COD tagging)',
+      ok: !!(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || (process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET)),
+      off: 'Not set, COD orders will not be tagged',
+    },
     { label: 'Cron secret', ok: !!process.env.CRON_SECRET, off: 'Not set, scheduled messages will not go out' },
   ];
 
