@@ -104,3 +104,27 @@ describe('review product name', async () => {
     expect(productName(null)).toBe('product');
   });
 });
+
+describe('shopify admin auth', () => {
+  it('exchanges client credentials for a token and tags the order', async () => {
+    const { vi } = await import('vitest');
+    vi.stubEnv('SHOPIFY_STORE_DOMAIN', 'robotek1.myshopify.com');
+    vi.stubEnv('SHOPIFY_ADMIN_ACCESS_TOKEN', '');
+    vi.stubEnv('SHOPIFY_CLIENT_ID', 'cid');
+    vi.stubEnv('SHOPIFY_CLIENT_SECRET', 'csecret');
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      if (url.endsWith('/admin/oauth/access_token')) {
+        return new Response(JSON.stringify({ access_token: 'tok123', expires_in: 86399 }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ data: { tagsAdd: { userErrors: [] } } }), { status: 200 });
+    }));
+    const { addOrderTags } = await import('@/lib/shopify');
+    expect(await addOrderTags(1, ['cod-confirmed'])).toEqual({ ok: true });
+    expect(String(calls[0].init.body)).toContain('grant_type=client_credentials');
+    expect((calls[1].init.headers as Record<string, string>)['X-Shopify-Access-Token']).toBe('tok123');
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+});

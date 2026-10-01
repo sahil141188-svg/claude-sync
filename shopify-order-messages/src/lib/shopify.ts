@@ -183,17 +183,52 @@ export function trackingUrl(f: ShopifyFulfillment): string | null {
 // Admin API
 // ---------------------------------------------------------------------------
 
-function adminConfig() {
-  const domain = process.env.SHOPIFY_STORE_DOMAIN;
-  const token = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
-  const version = process.env.SHOPIFY_API_VERSION || '2025-07';
-  if (!domain || !token) return null;
-  return { domain, token, version };
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+/**
+ * Admin API access. Two ways to authenticate:
+ * - SHOPIFY_ADMIN_ACCESS_TOKEN: a permanent shpat_ token (legacy custom app in Shopify admin), or
+ * - SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET: an app from the Shopify Dev Dashboard installed on
+ *   this store. A short-lived token is fetched with the client-credentials grant and cached.
+ */
+async function adminConfig(): Promise<{ domain: string; token: string; version: string } | null> {
+  const domain = (process.env.SHOPIFY_STORE_DOMAIN || '').trim();
+  const version = (process.env.SHOPIFY_API_VERSION || '2025-07').trim();
+  if (!domain) return null;
+
+  const staticToken = (process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || '').trim();
+  if (staticToken) return { domain, token: staticToken, version };
+
+  const clientId = (process.env.SHOPIFY_CLIENT_ID || '').trim();
+  const clientSecret = (process.env.SHOPIFY_CLIENT_SECRET || '').trim();
+  if (!clientId || !clientSecret) return null;
+
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return { domain, token: cachedToken.value, version };
+  }
+  try {
+    const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+      cache: 'no-store',
+    });
+    const json = (await res.json().catch(() => ({}))) as { access_token?: string; expires_in?: number; error_description?: string };
+    if (!res.ok || !json.access_token) {
+      console.error('[shopify] client-credentials token failed', res.status, json.error_description ?? '');
+      return null;
+    }
+    cachedToken = { value: json.access_token, expiresAt: Date.now() + (json.expires_in ?? 3600) * 1000 };
+    return { domain, token: cachedToken.value, version };
+  } catch (err) {
+    console.error('[shopify] client-credentials token error', err);
+    return null;
+  }
 }
 
 /** Fetch an order via the Admin REST API. Used when a fulfillment/refund arrives for an order we have not seen. */
 export async function fetchOrder(orderId: number): Promise<ShopifyOrder | null> {
-  const cfg = adminConfig();
+  const cfg = await adminConfig();
   if (!cfg) return null;
   const res = await fetch(`https://${cfg.domain}/admin/api/${cfg.version}/orders/${orderId}.json`, {
     headers: { 'X-Shopify-Access-Token': cfg.token },
@@ -209,8 +244,8 @@ export async function fetchOrder(orderId: number): Promise<ShopifyOrder | null> 
 
 /** Add tags to an order via the Admin GraphQL API (needs write_orders scope). */
 export async function addOrderTags(orderId: number, tags: string[]): Promise<{ ok: boolean; error?: string }> {
-  const cfg = adminConfig();
-  if (!cfg) return { ok: false, error: 'SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_ACCESS_TOKEN not set' };
+  const cfg = await adminConfig();
+  if (!cfg) return { ok: false, error: 'Shopify Admin API not configured (SHOPIFY_STORE_DOMAIN + SHOPIFY_ADMIN_ACCESS_TOKEN, or SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET)' };
   const res = await fetch(`https://${cfg.domain}/admin/api/${cfg.version}/graphql.json`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': cfg.token },
