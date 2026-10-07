@@ -80,6 +80,8 @@ export interface ShopifyOrder {
 export interface ShopifyFulfillment {
   id: number;
   order_id: number;
+  name?: string | null; // "#01970.1" = order name + fulfillment index
+  line_items?: { title: string; quantity: number; name?: string }[];
   status?: string | null;
   shipment_status?: string | null; // confirmed | in_transit | out_for_delivery | delivered | failure | ...
   tracking_url?: string | null;
@@ -143,7 +145,13 @@ export function orderNumber(order: Pick<ShopifyOrder, 'name' | 'order_number'>):
   return n || String(order.order_number ?? '');
 }
 
-export function itemSummary(order: ShopifyOrder): { summary: string; first: string } {
+/** Order number from a fulfillment name: "#01970.1" -> "01970". Null if the name is missing. */
+export function orderNumberFromFulfillment(f: Pick<ShopifyFulfillment, 'name'>): string | null {
+  const n = (f.name ?? '').replace(/^#/, '').replace(/\.\d+$/, '').trim();
+  return n || null;
+}
+
+export function itemSummary(order: Pick<ShopifyOrder, 'line_items'>): { summary: string; first: string } {
   const items = order.line_items ?? [];
   if (items.length === 0) return { summary: 'your items', first: 'product' };
   const first = truncate(items[0].title || items[0].name || 'product', 50);

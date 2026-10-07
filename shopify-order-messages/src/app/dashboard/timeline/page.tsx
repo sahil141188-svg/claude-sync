@@ -92,7 +92,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
                     <span className="min-w-0">
                       <span className="block font-semibold">#{o.order_no}</span>
                       <span className="block truncate text-sm text-ink-60">
-                        {o.customer_name} · {o.payment_method === 'cod' ? 'COD' : 'Prepaid'} · Rs {formatAmount(o.total)}
+                        {o.customer_name}{o.total == null ? ' · Amount not known yet' : ` · ${o.payment_method === 'cod' ? 'COD' : 'Prepaid'} · Rs ${formatAmount(o.total)}`}
                       </span>
                     </span>
                     <span className="shrink-0 text-right text-sm">
@@ -123,7 +123,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
                       {o.customer_name} · {o.phone ?? 'no phone'}
                     </p>
                     <p className="text-sm text-ink-60">
-                      {o.item_summary} · Rs {formatAmount(o.total)} · {o.payment_method === 'cod' ? 'Cash on Delivery' : 'Prepaid'}
+                      {o.total == null ? `${o.item_summary || 'Items not known yet'} · Amount and payment not known yet` : `${o.item_summary} · Rs ${formatAmount(o.total)} · ${o.payment_method === 'cod' ? 'Cash on Delivery' : 'Prepaid'}`}
                     </p>
                   </div>
                   <span className="rounded-full bg-maroon-10 px-3 py-1 text-sm font-medium text-maroon">

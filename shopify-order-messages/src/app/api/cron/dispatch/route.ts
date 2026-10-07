@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAuthorizedCron } from '@/lib/cron-auth';
 import { dispatchDue } from '@/lib/messages';
+import { repairPlaceholderOrders } from '@/lib/order-events';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -20,12 +21,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   try {
-    const results = await dispatchDue(createAdminClient());
+    const db = createAdminClient();
+    // Fix order numbers first, so queued messages go out with the real one.
+    const repaired = await repairPlaceholderOrders(db).catch((err) => {
+      console.error('[cron:repair]', err);
+      return 0;
+    });
+    const results = await dispatchDue(db);
     const summary = results.reduce<Record<string, number>>((acc, r) => {
       acc[r.outcome] = (acc[r.outcome] ?? 0) + 1;
       return acc;
     }, {});
-    return NextResponse.json({ ok: true, processed: results.length, summary });
+    return NextResponse.json({ ok: true, processed: results.length, summary, repaired });
   } catch (err) {
     console.error('[cron:dispatch]', err);
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 500 });
