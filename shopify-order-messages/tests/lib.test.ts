@@ -137,3 +137,19 @@ describe('shopify admin auth', () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe('fulfillment order numbers', () => {
+  it('reads the order number from the fulfillment name', async () => {
+    const { orderNumberFromFulfillment } = await import('../src/lib/shopify');
+    expect(orderNumberFromFulfillment({ name: '#01970.1' })).toBe('01970');
+    expect(orderNumberFromFulfillment({ name: '#1042.12' })).toBe('1042');
+    expect(orderNumberFromFulfillment({ name: '' })).toBeNull();
+    expect(orderNumberFromFulfillment({})).toBeNull();
+  });
+
+  it('spots rows saved with the internal order id', async () => {
+    const { isPlaceholder } = await import('../src/lib/order-events');
+    expect(isPlaceholder({ order_no: '7351809212675', shopify_order_id: 7351809212675 })).toBe(true);
+    expect(isPlaceholder({ order_no: '01970', shopify_order_id: 7351809212675 })).toBe(false);
+  });
+});

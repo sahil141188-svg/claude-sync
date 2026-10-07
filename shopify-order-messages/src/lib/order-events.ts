@@ -11,6 +11,7 @@ import {
   hasCheckoutOptIn,
   itemSummary,
   orderNumber,
+  orderNumberFromFulfillment,
   refundAmount,
   trackingUrl,
   type ShopifyFulfillment,
@@ -83,29 +84,54 @@ async function upsertShadow(db: SupabaseClient, order: ShopifyOrder, status: Ord
   return data as ShadowOrder;
 }
 
-/** Find the order for a fulfillment/refund; fetch it from Shopify if we have never seen it. */
-async function resolveOrder(
-  db: SupabaseClient,
-  orderId: number,
-  fallback?: ShopifyFulfillment['destination']
-): Promise<ShadowOrder | null> {
+/** True for a row saved before we knew the real order number (order_no is Shopify's internal id). */
+export function isPlaceholder(o: Pick<ShadowOrder, 'order_no' | 'shopify_order_id'>): boolean {
+  return o.order_no === String(o.shopify_order_id);
+}
+
+/**
+ * Find the order for a fulfillment/refund; fetch it from Shopify if we have never seen it.
+ * Orders placed before the orders/create webhook existed only reach us through fulfillments,
+ * so a placeholder row is built from the fulfillment and repaired as soon as more is known.
+ */
+async function resolveOrder(db: SupabaseClient, orderId: number, f?: ShopifyFulfillment): Promise<ShadowOrder | null> {
   const existing = await getShadow(db, orderId);
-  if (existing) return existing;
+  if (existing && !isPlaceholder(existing)) return existing;
 
   const fetched = await fetchOrder(orderId);
-  if (fetched) return upsertShadow(db, fetched, initialStatus(fetched));
+  if (fetched) return upsertShadow(db, fetched, existing?.status ?? initialStatus(fetched));
 
-  if (!fallback) return null;
-  // Last resort: minimal row from the fulfillment destination
+  if (!f) return existing;
+  const orderNo = orderNumberFromFulfillment(f);
+  const items = f.line_items?.length ? itemSummary(f) : null;
+  if (existing) {
+    if (!orderNo && !items) return existing;
+    const { data, error } = await db
+      .from('orders_shadow')
+      .update({
+        ...(orderNo ? { order_no: orderNo } : {}),
+        ...(items && !existing.item_summary ? { item_summary: items.summary, first_item: items.first } : {}),
+      })
+      .eq('shopify_order_id', orderId)
+      .select('*')
+      .single();
+    if (error) throw new Error(`resolveOrder: ${error.message}`);
+    if (orderNo) await renameOrderInMessages(db, orderId, existing.order_no, orderNo);
+    return data as ShadowOrder;
+  }
+
+  const dest = f.destination;
   const { data, error } = await db
     .from('orders_shadow')
     .upsert(
       {
         shopify_order_id: orderId,
-        order_no: String(orderId),
-        customer_name: fallback.first_name || fallback.name?.split(' ')[0] || 'there',
-        phone: normalizePhone(fallback.phone),
+        order_no: orderNo ?? String(orderId),
+        customer_name: dest?.first_name || dest?.name?.split(' ')[0] || 'there',
+        phone: normalizePhone(dest?.phone),
         status: 'confirmed',
+        item_summary: items?.summary ?? null,
+        first_item: items?.first ?? null,
       },
       { onConflict: 'shopify_order_id' }
     )
@@ -113,6 +139,42 @@ async function resolveOrder(
     .single();
   if (error) throw new Error(`resolveOrder: ${error.message}`);
   return data as ShadowOrder;
+}
+
+/** Point an order's messages at its real number; queued ones were built with the placeholder. */
+async function renameOrderInMessages(db: SupabaseClient, shopifyOrderId: number, oldNo: string, newNo: string) {
+  if (oldNo === newNo) return;
+  const { data: queued } = await db
+    .from('message_log')
+    .select('id, vars')
+    .eq('shopify_order_id', shopifyOrderId)
+    .eq('status', 'queued');
+  for (const m of queued ?? []) {
+    const vars = (m.vars as string[]).map((v) =>
+      v === oldNo ? newNo : v.replace(`order=${oldNo}`, `order=${encodeURIComponent(newNo)}`)
+    );
+    await db.from('message_log').update({ vars }).eq('id', m.id);
+  }
+  await db.from('message_log').update({ order_no: newNo }).eq('shopify_order_id', shopifyOrderId);
+}
+
+/** Fill in placeholder rows from the Shopify Admin API (needs Admin API access). Run by the cron. */
+export async function repairPlaceholderOrders(db: SupabaseClient, limit = 10): Promise<number> {
+  const { data } = await db
+    .from('orders_shadow')
+    .select('shopify_order_id, order_no, status')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  const rows = ((data ?? []) as ShadowOrder[]).filter(isPlaceholder).slice(0, limit);
+  let fixed = 0;
+  for (const row of rows) {
+    const fetched = await fetchOrder(row.shopify_order_id);
+    if (!fetched) break; // no Admin API access; try again next run
+    const o = await upsertShadow(db, fetched, row.status);
+    await renameOrderInMessages(db, o.shopify_order_id, row.order_no, o.order_no);
+    fixed++;
+  }
+  return fixed;
 }
 
 async function recordCheckoutOptIn(db: SupabaseClient, order: ShopifyOrder, phone: string | null) {
@@ -199,7 +261,7 @@ async function onOrderCancelled(db: SupabaseClient, order: ShopifyOrder) {
 }
 
 async function onFulfillment(db: SupabaseClient, f: ShopifyFulfillment, isCreate: boolean) {
-  const o = await resolveOrder(db, f.order_id, f.destination);
+  const o = await resolveOrder(db, f.order_id, f);
   if (!o) {
     console.warn('[fulfillment] unknown order', f.order_id);
     return;
